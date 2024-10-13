@@ -8,17 +8,16 @@ Le but de ce projet est de créer un jeu 2D engageant et visuellement distinct g
 
 ### **Progrès Actuel**
 
+- **Définir le thème et l'univers du jeu** : Jeu d'aventure dans un monde coloré, avec des enigmes, du combat, des quêtes et de l'interaction avec des PNJ.
+- **Mécaniques de Base** : Système de mouvement 2D et gestion des collisions.
+  
 ### **Prochaines Étapes**
 
-- **Définir le thème et l'univers du jeu** : Discussions en cours pour déterminer la direction artistique et narrative.
 - **Étendre le gameplay** : Intégrer de nouvelles mécaniques de jeu selon le thème choisi (combat, exploration, puzzles, etc.).
 - **Graphismes Pixel Art** : Mise en place des bases visuelles, avec un style pixel art rétro et soigné.
-- **Mécaniques de Base** : Système de mouvement 2D et gestion des collisions.
 - **Animations** : Premières animations du personnage principal, y compris les cycles de marche et d'attaque.
 - **Améliorations techniques** : Optimisation des animations, gestion des états du joueur, ajout de nouvelles fonctionnalités.
 - **Conception audio** : Création et intégration de la bande sonore et des effets sonores (collaboration avec des compositeurs/musiciens).
-
-## **Configuration du Projet**
 
 ### **Prérequis**
 
