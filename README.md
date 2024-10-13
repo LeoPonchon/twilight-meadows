@@ -22,15 +22,15 @@ Le but de ce projet est de créer un jeu 2D engageant et visuellement distinct g
 
 ### **Prérequis**
 
-- Unity (version recommandée : 2021.3.x ou plus récente)
-- Un éditeur de code (Visual Studio, Rider, ou autre compatible avec Unity)
+- Unity (version : 2022.3.13f1)
+- Un éditeur de code (Visual Studio ou autre compatible avec Unity)
 
 ### **Installation**
 
 1. Clonez le dépôt depuis notre serveur interne :
    
    ```bash
-   git clone https://notre-serveur-interne/projet.git
+   git clone https://github.com/LeoPonchon/projet-unity.git
    ```
 
 2. Ouvrez Unity et chargez le projet en sélectionnant le dossier cloné.
@@ -61,20 +61,11 @@ Le développement est organisé en sprints avec des itérations régulières pou
 
 ### **Outils et Pipeline**
 
-- **Version Control** : Git (hébergé sur notre serveur interne)
-- **Communication** : Slack/Discord pour les discussions en temps réel
-- **Gestion de projet** : Utilisation d'outils comme Trello ou Jira pour suivre l'avancement des tâches
+- **Version Control** : Git (hébergé sur github)
+- **Communication** : Discord pour les discussions en temps réel
+- **Gestion de projet** : Utilisation d'outils comme Trello pour suivre l'avancement des tâches
 - **Tests** : Tests réguliers pour vérifier la stabilité du projet à chaque nouvelle fonctionnalité ajoutée
-
-## **Collaborateurs**
-
-- **Développeurs** : [Nom des développeurs]
-- **Artistes Pixel Art** : [Nom des artistes]
-- **Designers** : [Nom des designers]
-- **Sound Designers/Compositeurs** : [Nom des compositeurs]
   
-Le projet est en constante évolution, et de nouveaux membres peuvent être ajoutés à l'équipe au fur et à mesure du développement.
-
 ## **Notes Importantes**
 
 Ce projet est destiné à une commercialisation future. **Tout le contenu de ce projet, y compris les graphismes, les scripts et autres ressources, est la propriété exclusive de l'équipe de développement.** Il est interdit de distribuer ou d'utiliser ce contenu en dehors du cadre du développement interne sans autorisation explicite.
