@@ -5,59 +5,59 @@ using UnityEngine;
 public class TopDownMovement : MonoBehaviour
 {
     [SerializeField]
-    private float normalSpeed = 0.5f;   // Vitesse par défaut
-    private float moveSpeed;            // Vitesse qui sera modifiée en fonction des entrées
-    private Rigidbody2D rb;             // Référence au Rigidbody2D du personnage
-    private Vector2 movement;           // Stocke la direction du mouvement
-    private Animator animator;          // Référence à l'Animator du personnage
+    private float normalSpeed = 5f;   // Default movement speed (adjust to suit your needs)
+    private float moveSpeed;          // Speed used for actual movement, modified by input
+    private Rigidbody2D rb;           // Reference to the Rigidbody2D component
+    private Vector2 movement;         // Store movement direction
+    private Animator animator;        // Reference to the Animator component
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        animator = GetComponent<Animator>();  // Initialiser l'Animator
-        moveSpeed = normalSpeed;              // Initialiser moveSpeed avec la vitesse normale
+        animator = GetComponent<Animator>();  // Initialize Animator
+        moveSpeed = normalSpeed;              // Set moveSpeed to normalSpeed
     }
 
     void Update()
     {
-        // Gérer les entrées du joueur (axes Horizontal et Vertical)
-        movement.x = Input.GetAxis("Horizontal");
-        movement.y = Input.GetAxis("Vertical");
+        // Capture input for movement (instant response, no smoothing)
+        movement.x = Input.GetAxisRaw("Horizontal");  // Raw input ensures no smooth acceleration
+        movement.y = Input.GetAxisRaw("Vertical");
 
-        // Si le joueur maintient la touche Shift, la vitesse est définie à 1, sinon à la vitesse normale
+        // Shift key for sprinting (optional)
         if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
         {
-            moveSpeed = normalSpeed * 2;  // Vitesse plus rapide lorsqu'on appuie sur Shift
+            moveSpeed = normalSpeed * 2;  // Double speed when Shift is held down
         }
         else
         {
-            moveSpeed = normalSpeed;      // Retour à la vitesse normale
+            moveSpeed = normalSpeed;      // Return to normal speed
         }
 
-        // Gérer l'animation en fonction de la direction du mouvement
+        // Update the animator based on movement direction
         if (movement.y > 0)
         {
-            animator.Play("walking_up_player");    // Jouer l'animation de marche vers le haut
+            animator.Play("walking_up_player");    // Play walking up animation
         }
         else if (movement.y < 0)
         {
-            animator.Play("walking_down_player");  // Jouer l'animation de marche vers le bas
+            animator.Play("walking_down_player");  // Play walking down animation
         }
         else if (movement.x != 0)
         {
-            animator.Play("walking_horizontal_player");  // Jouer l'animation de marche latérale (droite/gauche)
+            animator.Play("walking_horizontal_player");  // Play horizontal walk animation (left or right)
         }
 
-        // Si aucune touche de mouvement n'est pressée, arrêter l'animation
+        // If no movement, play idle animation
         if (movement == Vector2.zero)
         {
-            animator.Play("idle_player");         // Assurez-vous d'avoir une animation d'attente ("idle_player")
+            animator.Play("idle_player");          // Play idle animation
         }
     }
 
     void FixedUpdate()
     {
-        // Appliquer le mouvement au Rigidbody2D
+        // Apply movement instantly at full speed, no acceleration
         rb.MovePosition(rb.position + movement * moveSpeed * Time.fixedDeltaTime);
     }
 }
