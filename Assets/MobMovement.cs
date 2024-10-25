@@ -4,26 +4,29 @@ using UnityEngine;
 
 public class MobMovement : MonoBehaviour
 {
+    [Header("Movement Settings")]
     public float detectionRadius = 1f;
     public float moveSpeed = 1f;
     public float wanderRadius = 3f;
-    public float timeUntilNewWanderTarget = 2f;
     public float stopDuration = 1f;
+
+    [Header("Wandering Settings")]
+    public float timeUntilNewWanderTarget = 2f;
     public float wanderTime = 3f;
 
     [SerializeField]
     private GameObject player;
 
     private Vector3 wanderTarget;
-    private float timer;
-    private Animator animator;
-
+    private float wanderTimer;
     private float stopTimer;
     private bool isMoving = true;
 
+    private Animator animator;
+
     void Start()
     {
-        timer = timeUntilNewWanderTarget;
+        wanderTimer = timeUntilNewWanderTarget;
         stopTimer = wanderTime;
         SetRandomWanderTarget();
         animator = GetComponent<Animator>();
@@ -31,30 +34,60 @@ public class MobMovement : MonoBehaviour
 
     void Update()
     {
-        float distanceToPlayer = Vector3.Distance(transform.position, player.transform.position);
-
-        if (distanceToPlayer < detectionRadius)
+        if (IsPlayerInDetectionRange())
         {
             ChasePlayer();
         }
         else
         {
-            Wander();
+            HandleWandering();
+        }
+    }
+
+    bool IsPlayerInDetectionRange()
+    {
+        return Vector3.Distance(transform.position, player.transform.position) < detectionRadius;
+    }
+
+    void HandleWandering()
+    {
+        wanderTimer += Time.deltaTime;
+        if (wanderTimer >= timeUntilNewWanderTarget)
+        {
+            SetRandomWanderTarget();
+            wanderTimer = 0;
         }
 
         if (isMoving)
         {
             MoveTowards(wanderTarget);
+            CheckForStop();
         }
         else
         {
-            stopTimer -= Time.deltaTime;
-            animator.SetBool("isMoving", false);
-            if (stopTimer <= 0)
-            {
-                isMoving = true;
-                stopTimer = wanderTime;
-            }
+            StopTemporarily();
+        }
+    }
+
+    void CheckForStop()
+    {
+        stopTimer -= Time.deltaTime;
+        if (stopTimer <= 0)
+        {
+            isMoving = false;
+            stopTimer = stopDuration;
+        }
+    }
+
+    void StopTemporarily()
+    {
+        stopTimer -= Time.deltaTime;
+        animator.SetBool("isMoving", false);
+
+        if (stopTimer <= 0)
+        {
+            isMoving = true;
+            stopTimer = wanderTime;
         }
     }
 
@@ -62,26 +95,6 @@ public class MobMovement : MonoBehaviour
     {
         Vector2 randomDirection = Random.insideUnitCircle * wanderRadius;
         wanderTarget = new Vector3(randomDirection.x, randomDirection.y, 0) + transform.position;
-    }
-
-    void Wander()
-    {
-        timer += Time.deltaTime;
-        if (timer >= timeUntilNewWanderTarget)
-        {
-            SetRandomWanderTarget();
-            timer = 0;
-        }
-
-        if (isMoving)
-        {
-            stopTimer -= Time.deltaTime;
-            if (stopTimer <= 0)
-            {
-                isMoving = false;
-                stopTimer = stopDuration;
-            }
-        }
     }
 
     void ChasePlayer()
@@ -94,9 +107,7 @@ public class MobMovement : MonoBehaviour
         Vector3 direction = (target - transform.position).normalized;
         transform.position += direction * moveSpeed * Time.deltaTime;
 
-        float speed = direction.magnitude * moveSpeed;
-
-        animator.SetBool("isMoving", speed > 0f);
+        animator.SetBool("isMoving", direction.sqrMagnitude > 0);
     }
 
     void OnDrawGizmosSelected()
