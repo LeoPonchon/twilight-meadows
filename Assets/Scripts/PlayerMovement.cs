@@ -4,60 +4,60 @@ using UnityEngine;
 
 public class TopDownMovement : MonoBehaviour
 {
-    [SerializeField]
-    private float normalSpeed = 5f;   // Default movement speed (adjust to suit your needs)
-    private float moveSpeed;          // Speed used for actual movement, modified by input
-    private Rigidbody2D rb;           // Reference to the Rigidbody2D component
-    private Vector2 movement;         // Store movement direction
-    private Animator animator;        // Reference to the Animator component
+    private float defaultSpeed;
+    private float currentSpeed;
+    private Rigidbody2D rb;
+    private Vector2 movement;
+    private Animator animator;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        animator = GetComponent<Animator>();  // Initialize Animator
-        moveSpeed = normalSpeed;              // Set moveSpeed to normalSpeed
+        animator = GetComponent<Animator>();
+        defaultSpeed = GetComponent<StatsManager>().speed;
     }
 
     void Update()
     {
-        // Capture input for movement (instant response, no smoothing)
-        movement.x = Input.GetAxisRaw("Horizontal");  // Raw input ensures no smooth acceleration
-        movement.y = Input.GetAxisRaw("Vertical");
+        currentSpeed = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) ? defaultSpeed * 2 : defaultSpeed;
 
-        // Shift key for sprinting (optional)
-        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
-        {
-            moveSpeed = normalSpeed * 2;  // Double speed when Shift is held down
-        }
-        else
-        {
-            moveSpeed = normalSpeed;      // Return to normal speed
-        }
+        movement = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
 
-        // Update the animator based on movement direction
-        if (movement.y > 0)
+        string direction = "idle";
+        if (movement != Vector2.zero)
         {
-            animator.Play("walking_up_player");    // Play walking up animation
-        }
-        else if (movement.y < 0)
-        {
-            animator.Play("walking_down_player");  // Play walking down animation
-        }
-        else if (movement.x != 0)
-        {
-            animator.Play("walking_horizontal_player");  // Play horizontal walk animation (left or right)
+            if (Mathf.Abs(movement.x) > Mathf.Abs(movement.y))
+            {
+                direction = movement.x > 0 ? "right" : "left";
+            }
+            else
+            {
+                direction = movement.y > 0 ? "up" : "down";
+            }
         }
 
-        // If no movement, play idle animation
-        if (movement == Vector2.zero)
+        switch (direction)
         {
-            animator.Play("idle_player");          // Play idle animation
+            case "up":
+                animator.Play("walking_up_player");
+                break;
+            case "down":
+                animator.Play("walking_down_player");
+                break;
+            case "left":
+                animator.Play("walking_horizontal_player");
+                break;
+            case "right":
+                animator.Play("walking_horizontal_player");
+                break;
+            default:
+                animator.Play("idle_player");
+                break;
         }
     }
 
     void FixedUpdate()
     {
-        // Apply movement instantly at full speed, no acceleration
-        rb.MovePosition(rb.position + movement * moveSpeed * Time.fixedDeltaTime);
+        rb.MovePosition(rb.position + movement * currentSpeed * Time.fixedDeltaTime);
     }
 }

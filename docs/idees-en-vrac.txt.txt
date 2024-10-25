@@ -1,0 +1,6 @@
+- objets deplacables ? 
+
+- inventaire :
+	- detruire les objets ? 
+	- deposer des objets ? 
+	

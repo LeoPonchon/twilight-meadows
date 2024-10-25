@@ -8,23 +8,23 @@ public class MobMovement : MonoBehaviour
     public float moveSpeed = 1f;
     public float wanderRadius = 3f;
     public float timeUntilNewWanderTarget = 2f;
-    public float stopDuration = 1f; // Durée d'arrêt
-    public float wanderTime = 3f; // Temps de marche avant l'arrêt
+    public float stopDuration = 1f;
+    public float wanderTime = 3f;
 
+    [SerializeField]
     private GameObject player;
+
     private Vector3 wanderTarget;
     private float timer;
-    private bool isChasingPlayer = false;
     private Animator animator;
 
-    private float stopTimer; // Timer pour contrôler l'arrêt
-    private bool isMoving = true; // Indique si le monstre est en mouvement
+    private float stopTimer;
+    private bool isMoving = true;
 
     void Start()
     {
-        player = GameObject.FindGameObjectWithTag("Player");
         timer = timeUntilNewWanderTarget;
-        stopTimer = wanderTime; // Initialise le timer d'arrêt
+        stopTimer = wanderTime;
         SetRandomWanderTarget();
         animator = GetComponent<Animator>();
     }
@@ -35,16 +35,13 @@ public class MobMovement : MonoBehaviour
 
         if (distanceToPlayer < detectionRadius)
         {
-            isChasingPlayer = true;
             ChasePlayer();
         }
         else
         {
-            isChasingPlayer = false;
             Wander();
         }
 
-        // Gère le mouvement et l'animation
         if (isMoving)
         {
             MoveTowards(wanderTarget);
@@ -55,9 +52,8 @@ public class MobMovement : MonoBehaviour
             animator.SetBool("isMoving", false);
             if (stopTimer <= 0)
             {
-                // Redémarre le timer d'arrêt et définit le mouvement
                 isMoving = true;
-                stopTimer = wanderTime; // Réinitialise le timer d'arrêt
+                stopTimer = wanderTime;
             }
         }
     }
@@ -77,14 +73,13 @@ public class MobMovement : MonoBehaviour
             timer = 0;
         }
 
-        // Décide si le monstre doit s'arrêter ou non
         if (isMoving)
         {
             stopTimer -= Time.deltaTime;
             if (stopTimer <= 0)
             {
-                isMoving = false; // Le monstre s'arrête
-                stopTimer = stopDuration; // Réinitialise le timer d'arrêt
+                isMoving = false;
+                stopTimer = stopDuration;
             }
         }
     }
