@@ -15,28 +15,33 @@ public class InventoryUI : MonoBehaviour
     public GameObject tooltip; // Référence à l'infobulle dans le Canvas
     public TextMeshProUGUI tooltipText; // Texte de l'infobulle
 
-
     private Dictionary<int, GameObject> slots = new Dictionary<int, GameObject>();
 
     private int? selectedSlotID = null;
     private GameObject floatingItem;
 
-    public GameObject player;
+    [SerializeField]
     private PlayerInput playerInput;
-
 
     private void Awake()
     {
         playerInventory.OnInventoryChanged += UpdateInventoryUI;
         CreateInventorySlots();
         UpdateInventoryUI();
-        playerInput = player.GetComponent<PlayerInput>();
+    }
+
+    private void OnEnable()
+    {
+        playerInput.SwitchCurrentActionMap("UI");
+    }
+
+    private void OnDisable()
+    {
+        playerInput.SwitchCurrentActionMap("Game");
     }
 
     private void Start()
     {
-        gameObject.SetActive(false);
-        tooltip.SetActive(false); // Désactiver l’infobulle au début
     }
 
     private void Update()
@@ -144,8 +149,6 @@ public class InventoryUI : MonoBehaviour
         trigger.triggers.Add(entry);
     }
 
-
-
     private void ResetSlotUI(GameObject slot)
     {
         slot.transform.GetChild(0).GetComponent<Image>().sprite = null;
@@ -176,11 +179,28 @@ public class InventoryUI : MonoBehaviour
             }
         }
     }
+
     public void OnSlotClicked(int slotID)
     {
-        Debug.Log(slotID);
+        Debug.Log($"Slot clicked: {slotID}");
 
-        if (selectedSlotID == null)
+        // Vérification du type de clic
+        var mouse = Mouse.current;
+        if (mouse.leftButton.wasPressedThisFrame)
+        {
+            Debug.Log("Clic gauche détecté");
+            HandleLeftClick(slotID);
+        }
+        else if (mouse.rightButton.wasPressedThisFrame)
+        {
+            Debug.Log("Clic droit détecté");
+            HandleRightClick(slotID);
+        }
+    }
+
+    private void HandleLeftClick(int slotID)
+    {
+        if (playerInput.actions["LeftClick"].triggered)
         {
             // Début du déplacement
             if (playerInventory.GetItemInSlot(slotID) != null)
@@ -227,5 +247,11 @@ public class InventoryUI : MonoBehaviour
                 UpdateInventoryUI();
             }
         }
+    }
+
+    private void HandleRightClick(int slotID)
+    {
+        // Ajouter la logique de clic droit ici (par exemple, utiliser un objet ou diviser une pile)
+        Debug.Log($"Clic droit sur le slot {slotID}");
     }
 }
