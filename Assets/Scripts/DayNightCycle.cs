@@ -16,7 +16,6 @@ public class DayNightCycle : MonoBehaviour
     [SerializeField] private int mins;
     [SerializeField] private int hours = 9;
     [SerializeField] private int days = 1;
-    [SerializeField] private int dayNameId = 1;
     [SerializeField] private int seasonId = 1;
     [SerializeField] private int year = 1;
 
@@ -50,23 +49,24 @@ public class DayNightCycle : MonoBehaviour
         if (hours >= 24)
         {
             hours = 0;
-            days += 1;
-            dayNameId += 1;
-        }
-        if (dayNameId > 7) dayNameId = 1;
-        if (days >= 28)
-        {
-            days = 1;
-            seasonId += 1;
+            days += 1; // Incrémenter les jours sans retourner à 0
         }
 
-        if (seasonId >= 4)
+        if (days > 28)
         {
-            year += 1;
-            seasonId = 1;
+            days = 1; // Réinitialiser les jours du mois après 28
+            seasonId += 1; // Passer à la saison suivante
         }
+
+        if (seasonId > 4)
+        {
+            seasonId = 1; // Retourner au printemps après l'hiver
+            year += 1; // Incrémenter l'année
+        }
+
         ControlPPV();
     }
+
 
     public void ControlPPV()
     {
@@ -97,11 +97,11 @@ public class DayNightCycle : MonoBehaviour
 
     public void DisplayTime()
     {
-        string dayNameToDisplay = dayNameId switch { 1 => "Mon", 2 => "Tue", 3 => "Wed", 4 => "Thu", 5 => "Fri", 6 => "Sat", 7 => "Sun", _ => "" };
+        string dayNameToDisplay = (days % 7) switch { 1 => "Mon", 2 => "Tue", 3 => "Wed", 4 => "Thu", 5 => "Fri", 6 => "Sat", 0 => "Sun", _ => "" };
         string seasonToDisplay = seasonId switch { 1 => "Spring", 2 => "Summer", 3 => "Autumn", 4 => "Winter", _ => "" };
 
         timeDisplay.text = string.Format("{0:00}:{1:00}", hours, mins);
-        dayDisplay.text = $"{dayNameToDisplay} {dayNameId}";
+        dayDisplay.text = $"{dayNameToDisplay} {days}";
         seasonDisplay.text = seasonToDisplay;
         yearDisplay.text = "Year " + year;
     }
@@ -114,5 +114,15 @@ public class DayNightCycle : MonoBehaviour
     internal int GetCurrentMins()
     {
         return mins;
+    }
+
+    internal int GetCurrentDay()
+    {
+        return days;
+    }
+
+    internal string GetCurrentSeason()
+    {
+        return seasonDisplay.text;
     }
 }

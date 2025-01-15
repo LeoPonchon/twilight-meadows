@@ -1,6 +1,6 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -10,13 +10,16 @@ public class InventoryUI : MonoBehaviour
 {
     public Inventory playerInventory;
     public GameObject itemSlotPrefab;
+    public GameObject selectorPrefab;
     public Transform inventoryPanel;
     public Transform hotbarPanel;
-    public GameObject tooltip; // Référence à l'infobulle dans le Canvas
-    public TextMeshProUGUI tooltipText; // Texte de l'infobulle
+    public GameObject tooltip;
+    public TextMeshProUGUI tooltipText;
 
+    private ItemData floatingItemData;
     private Dictionary<int, GameObject> slots = new Dictionary<int, GameObject>();
-
+    private GameObject selectorInstance;
+    private int? hoveredSlotID = null;
     private int? selectedSlotID = null;
     private GameObject floatingItem;
 
@@ -26,232 +29,246 @@ public class InventoryUI : MonoBehaviour
     private void Awake()
     {
         playerInventory.OnInventoryChanged += UpdateInventoryUI;
-        CreateInventorySlots();
         UpdateInventoryUI();
+
+        selectorInstance = Instantiate(selectorPrefab, inventoryPanel.parent);
+        selectorInstance.SetActive(false);
     }
 
-    private void OnEnable()
-    {
-        playerInput.SwitchCurrentActionMap("UI");
-    }
-
-    private void OnDisable()
-    {
+    private void OnEnable() => playerInput.SwitchCurrentActionMap("UI");
+    private void OnDisable() {
         playerInput.SwitchCurrentActionMap("Game");
-    }
-
-    private void Start()
-    {
+        HideTooltip();
+        HideSelector();
     }
 
     private void Update()
     {
-        if (playerInput.actions["OpenInventory"].triggered) // Si on ferme l'inventaire
+        if (playerInput.actions["OpenInventory"].triggered)
         {
+            HandleFloatingItem();
             HideTooltip();
-            // Gestion de la fermeture de l'inventaire
-            if (floatingItem != null && selectedSlotID.HasValue)
-            {
-                // Remettre l'objet dans le slot sélectionné
-                Debug.Log($"Remettre l'objet flottant dans le slot {selectedSlotID.Value}");
-
-                Image slotImage = slots[selectedSlotID.Value].transform.GetChild(0).GetComponent<Image>();
-                Image floatingImage = floatingItem.GetComponent<Image>();
-
-                slotImage.sprite = floatingImage.sprite;
-                slotImage.enabled = true;
-
-                // Détruire l'objet flottant
-                Destroy(floatingItem);
-                floatingItem = null;
-            }
-
-            // Réinitialiser la sélection
-            selectedSlotID = null;
         }
         else if (floatingItem != null)
         {
-            // Mettre à jour la position de l'objet flottant avec la souris
-            Vector3 mousePosition = Input.mousePosition;
-            RectTransform floatingRect = floatingItem.GetComponent<RectTransform>();
-            floatingRect.position = new Vector3(mousePosition.x - 50f, mousePosition.y - 50f, 0);
+            UpdateFloatingItemPosition();
         }
+    }
+
+    private void HandleFloatingItem()
+    {
+        if (floatingItem != null && selectedSlotID.HasValue)
+        {
+            SetSlotImage(selectedSlotID.Value, floatingItem.GetComponent<Image>().sprite);
+            Destroy(floatingItem);
+            floatingItem = null;
+        }
+
+        selectedSlotID = null;
+    }
+
+    private void UpdateFloatingItemPosition()
+    {
+        Vector3 mousePosition = Input.mousePosition;
+        floatingItem.GetComponent<RectTransform>().position = mousePosition + new Vector3(-50f, -50f, 0);
     }
 
     private void ShowTooltip(string itemName, string itemDescription, Vector3 position)
     {
-        if (gameObject.activeSelf)
-        {
-            tooltip.SetActive(true);
-            tooltipText.text = $"<b>{itemName}</b>\n{itemDescription}";
-            tooltip.transform.position = position + new Vector3(0, -150f, 0f);
-        }
+        tooltip.SetActive(true);
+        tooltipText.text = $"<b>{itemName}</b>\n{itemDescription}";
+        tooltip.transform.position = position + new Vector3(0, -150f, 0f);
     }
 
-    private void HideTooltip()
+    private void HideTooltip() => tooltip.SetActive(false);
+
+    public void CreateInventorySlots()
     {
-        if (gameObject.activeSelf)
-        {
-            tooltip.SetActive(false);
-        }
+        CreateSlots(hotbarPanel, playerInventory.maxHotbarSlots, true);
+        CreateSlots(inventoryPanel, playerInventory.maxSlots, false);
     }
 
-    private void CreateInventorySlots()
+    private void CreateSlots(Transform panel, int count, bool isHotbar)
     {
-        int slotID = 0;
-
-        for (int i = 0; i < playerInventory.maxHotbarSlots; i++)
+        for (int i = 0; i < count; i++)
         {
-            GameObject slot = Instantiate(itemSlotPrefab, hotbarPanel);
-            int currentSlotID = slotID;
-            slot.GetComponent<Button>().onClick.AddListener(() => OnSlotClicked(currentSlotID));
-
+            GameObject slot = Instantiate(itemSlotPrefab, panel);
+            int slotID = slots.Count;
             slots.Add(slotID, slot);
-            slot.name = $"Hotbar Slot {slotID}";
+
+            slot.name = isHotbar ? $"Hotbar Slot {slotID}" : $"Inventory Slot {slotID}";
+            AddSlotEvents(slot, slotID, isHotbar);
             ResetSlotUI(slot);
-            slotID++;
-        }
-
-        for (int i = 0; i < playerInventory.maxSlots; i++)
-        {
-            GameObject slot = Instantiate(itemSlotPrefab, inventoryPanel);
-            int currentSlotID = slotID;
-            slot.GetComponent<Button>().onClick.AddListener(() => OnSlotClicked(currentSlotID));
-
-            EventTrigger trigger = slot.AddComponent<EventTrigger>();
-
-            AddEventTrigger(trigger, EventTriggerType.PointerEnter, eventData =>
-            {
-                ItemStack item = playerInventory.GetItemInSlot(currentSlotID);
-                if (item != null)
-                {
-                    Vector3 mousePosition = Input.mousePosition;
-                    ShowTooltip(item.itemData.itemName, item.itemData.description, slot.transform.position);
-                }
-            });
-
-            AddEventTrigger(trigger, EventTriggerType.PointerExit, eventData =>
-            {
-                HideTooltip();
-            });
-
-            slots.Add(slotID, slot);
-            slot.name = $"Inventory Slot {slotID}";
-            ResetSlotUI(slot);
-            slotID++;
         }
     }
 
-    private void AddEventTrigger(EventTrigger trigger, EventTriggerType eventType, UnityEngine.Events.UnityAction<BaseEventData> action)
+    private void AddSlotEvents(GameObject slot, int slotID, bool isHotbar)
     {
-        EventTrigger.Entry entry = new EventTrigger.Entry { eventID = eventType };
+        EventTrigger trigger = slot.AddComponent<EventTrigger>();
+
+        AddEventTrigger(trigger, EventTriggerType.PointerEnter, _ => OnSlotHover(slotID, slot, isHotbar));
+        AddEventTrigger(trigger, EventTriggerType.PointerExit, _ => OnSlotExit(slotID));
+
+        slot.GetComponent<UIClickHandler>().onLeftClick.AddListener(() => HandleLeftClick(slotID));
+        slot.GetComponent<UIClickHandler>().onRightClick.AddListener(() => HandleRightClick(slotID));
+    }
+
+    private void AddEventTrigger(EventTrigger trigger, EventTriggerType type, UnityEngine.Events.UnityAction<BaseEventData> action)
+    {
+        EventTrigger.Entry entry = new EventTrigger.Entry { eventID = type };
         entry.callback.AddListener(action);
         trigger.triggers.Add(entry);
     }
 
+    private void OnSlotHover(int slotID, GameObject slot, bool isHotbar)
+    {
+        if (!isHotbar)
+        {
+            var item = playerInventory.GetItemInSlot(slotID);
+            if (item != null) ShowTooltip(item.itemData.itemName, item.itemData.description, slot.transform.position);
+        }
+
+        hoveredSlotID = slotID;
+        ShowSelector(slot);
+    }
+
+    private void OnSlotExit(int slotID)
+    {
+        HideTooltip();
+        HideSelector();
+        hoveredSlotID = null;
+    }
+
+    private void ShowSelector(GameObject slot)
+    {
+        selectorInstance.SetActive(true);
+        selectorInstance.transform.position = slot.transform.position;
+    }
+
+    private void HideSelector() => selectorInstance.SetActive(false);
+
     private void ResetSlotUI(GameObject slot)
     {
-        slot.transform.GetChild(0).GetComponent<Image>().sprite = null;
-        slot.transform.GetChild(0).GetComponent<Image>().enabled = false;
+        SetSlotImage(slot, null);
         slot.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = "";
+    }
+
+    private void SetSlotImage(GameObject slot, Sprite sprite)
+    {
+        var image = slot.transform.GetChild(0).GetComponent<Image>();
+        image.sprite = sprite;
+        image.enabled = sprite != null;
+    }
+
+    private void SetSlotImage(int slotID, Sprite sprite)
+    {
+        if (slots.TryGetValue(slotID, out GameObject slot)) SetSlotImage(slot, sprite);
     }
 
     public void UpdateInventoryUI()
     {
-        foreach (var slot in slots.Values)
-        {
-            ResetSlotUI(slot);
-        }
+        foreach (var slot in slots.Values) ResetSlotUI(slot);
 
-        foreach (var item in playerInventory.GetAllItemsWithIDs())
+        foreach (var (slotID, stack) in playerInventory.GetAllItemsWithIDs())
         {
-            int slotID = item.Key;
-            ItemStack stack = item.Value;
-
             if (slots.TryGetValue(slotID, out GameObject slot))
             {
-                Image icon = slot.transform.GetChild(0).GetComponent<Image>();
-                TextMeshProUGUI quantityText = slot.transform.GetChild(1).GetComponent<TextMeshProUGUI>();
-
-                icon.sprite = stack.itemData.icon;
-                icon.enabled = true;
-                quantityText.text = stack.quantity > 1 ? stack.quantity.ToString() : "";
+                SetSlotImage(slot, stack.itemData.icon);
+                slot.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = stack.quantity > 1 ? stack.quantity.ToString() : "";
             }
         }
     }
-
-    public void OnSlotClicked(int slotID)
-    {
-        Debug.Log($"Slot clicked: {slotID}");
-
-        // Vérification du type de clic
-        var mouse = Mouse.current;
-        if (mouse.leftButton.wasPressedThisFrame)
-        {
-            Debug.Log("Clic gauche détecté");
-            HandleLeftClick(slotID);
-        }
-        else if (mouse.rightButton.wasPressedThisFrame)
-        {
-            Debug.Log("Clic droit détecté");
-            HandleRightClick(slotID);
-        }
-    }
+        
+    private int floatingItemQuantity = 0;
 
     private void HandleLeftClick(int slotID)
     {
-        if (playerInput.actions["LeftClick"].triggered)
+        if (floatingItem == null)
         {
-            // Début du déplacement
-            if (playerInventory.GetItemInSlot(slotID) != null)
-            {
-                selectedSlotID = slotID;
-
-                // Récupération des données visuelles de l'item
-                Image slotImage = slots[slotID].transform.GetChild(0).GetComponent<Image>();
-                Sprite itemSprite = slotImage.sprite;
-
-                slotImage.sprite = null;
-                slotImage.enabled = false;
-
-                // Création dynamique de l'objet "floating item"
-                floatingItem = new GameObject("Floating Item");
-                floatingItem.transform.SetParent(transform.parent); // Ajout à la hiérarchie du canvas
-                floatingItem.AddComponent<CanvasRenderer>();
-
-                RectTransform floatingRect = floatingItem.AddComponent<RectTransform>();
-                floatingRect.sizeDelta = new Vector2(slots[slotID].transform.GetChild(0).GetComponent<RectTransform>().rect.width, slots[slotID].transform.GetChild(0).GetComponent<RectTransform>().rect.height); // Taille de l'item visuel
-                floatingRect.anchorMin = new Vector2(0.5f, 0.5f);
-                floatingRect.anchorMax = new Vector2(0.5f, 0.5f);
-
-                Image floatingImage = floatingItem.AddComponent<Image>();
-                floatingImage.sprite = itemSprite;
-                floatingImage.raycastTarget = false; // Empêche l'item de bloquer les clics
-            }
+            StartFloatingItem(slotID);
         }
-        else
+        else if (floatingItem != null)
         {
-            // Fin du déplacement
-            if (playerInventory.GetItemInSlot(slotID) == null || slotID == selectedSlotID)
-            {
-                playerInventory.MoveItem((int)selectedSlotID, slotID);
-                selectedSlotID = null;
-
-                // Suppression de l'objet flottant
-                if (floatingItem != null)
-                {
-                    Destroy(floatingItem);
-                    floatingItem = null;
-                }
-
-                UpdateInventoryUI();
-            }
+            CompleteFloatingItem(slotID);
         }
     }
 
     private void HandleRightClick(int slotID)
     {
-        // Ajouter la logique de clic droit ici (par exemple, utiliser un objet ou diviser une pile)
-        Debug.Log($"Clic droit sur le slot {slotID}");
+        if (floatingItem == null)
+        {
+            StartFloatingItem(slotID, true);
+        }
+        else if (floatingItem != null)
+        {
+            CompleteFloatingItem(slotID, true);
+        }
+    }
+
+    private void StartFloatingItem(int slotID, bool isRightClick = false)
+    {
+        var item = playerInventory.GetItemInSlot(slotID);
+        if (item == null) return;
+
+        // Si on est en mode clic droit, diviser le stack en deux
+        floatingItemQuantity = isRightClick ? Mathf.CeilToInt(item.quantity / 2f) : item.quantity;
+        selectedSlotID = slotID;
+        floatingItemData = item.itemData;
+
+        floatingItem = CreateFloatingItem(slots[slotID].transform.GetChild(0).GetComponent<Image>().sprite, slots[slotID].transform.GetChild(0).GetComponent<RectTransform>().rect.size);
+        SetSlotImage(slotID, null);
+
+        playerInventory.RemoveItemFromSlot(slotID, floatingItemQuantity);
+        UpdateInventoryUI();
+    }
+
+    private void CompleteFloatingItem(int slotID, bool isRightClick = false)
+    {
+        if (floatingItem == null || floatingItemData == null) return;
+
+        var slotItem = playerInventory.GetItemInSlot(slotID);
+
+        // Si le slot cible est vide ou contient un item similaire
+        if (slotItem == null || (slotItem.itemData == floatingItemData && floatingItemData.isStackable))
+        {
+            int quantityToMove = isRightClick ? 1: floatingItemQuantity;
+            quantityToMove = Mathf.Min(quantityToMove, floatingItemQuantity); // Ne pas dépasser la quantité restante
+
+            playerInventory.AddItemToSlot(slotID, floatingItemData, quantityToMove);
+            floatingItemQuantity -= quantityToMove;
+
+            if (floatingItemQuantity <= 0)
+            {
+                Destroy(floatingItem);
+                floatingItem = null;
+                floatingItemData = null;
+                selectedSlotID = null;
+            }
+
+            UpdateInventoryUI();
+        }
+        else
+        {
+            Debug.LogWarning("Cannot place item in this slot.");
+        }
+    }
+
+
+
+    private GameObject CreateFloatingItem(Sprite sprite, Vector2 size)
+    {
+        GameObject floating = new GameObject("Floating Item", typeof(CanvasRenderer), typeof(RectTransform), typeof(Image));
+        floating.transform.SetParent(transform.parent);
+
+        var rectTransform = floating.GetComponent<RectTransform>();
+        rectTransform.sizeDelta = size;
+        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+
+        var image = floating.GetComponent<Image>();
+        image.sprite = sprite;
+        image.raycastTarget = false;
+
+        return floating;
     }
 }

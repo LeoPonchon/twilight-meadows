@@ -4,19 +4,26 @@ using UnityEngine;
 
 public class Inventory : MonoBehaviour
 {
-    public int maxSlots = 20; // Nombre maximum de slots
+    [Serializable]
+    public class DefaultItem
+    {
+        public ItemData itemData; // Données de l'objet
+        public int quantity = 1;  // Quantité par défaut
+    }
+
+    public int maxSlots = 20; // Nombre maximum de slots    
     public int maxHotbarSlots = 10; // Nombre maximum de slots dans la hotbar
 
-    public List<ItemData> defaultItems = new List<ItemData>(); // Liste personnalisable dans l'inspecteur
+    public List<DefaultItem> defaultItems = new List<DefaultItem>(); // Liste personnalisable dans l'inspecteur
     private Dictionary<int, ItemStack> items = new Dictionary<int, ItemStack>();
 
     public event Action OnInventoryChanged;
 
     public void Start()
     {
-        foreach(ItemData item in defaultItems)
+        foreach (DefaultItem item in defaultItems)
         {
-            AddItem(item, 1);
+            AddItem(item.itemData, item.quantity);
         }
     }
 
@@ -100,21 +107,59 @@ public class Inventory : MonoBehaviour
         }
         return null;
     }
-    public void MoveItem(int fromSlotID, int toSlotID)
+    public void AddItemToSlot(int slotIndex, ItemData itemData, int quantity = 1)
     {
-        if (items.ContainsKey(fromSlotID) && !items.ContainsKey(toSlotID) && !(fromSlotID == toSlotID))
+        if (slotIndex < 0 || slotIndex >= maxHotbarSlots + maxSlots)
         {
-            items[toSlotID] = items[fromSlotID];
-            items.Remove(fromSlotID);
-            OnInventoryChanged?.Invoke();
+            Debug.LogWarning("Invalid slot index.");
+            return;
         }
-        else if (fromSlotID == toSlotID)
+
+        if (items.ContainsKey(slotIndex))
         {
-            Debug.Log("Item déplacé dans la case d'origine.");
+            if (itemData.isStackable && items[slotIndex].itemData == itemData)
+            {
+                // Si l'objet est empilable et le slot contient déjà cet objet
+                items[slotIndex].quantity += quantity;
+            }
+            else
+            {
+                Debug.LogWarning($"Slot {slotIndex} is already occupied with a different item.");
+            }
         }
         else
         {
-            Debug.LogWarning("Impossible de déplacer l'item.");
+            // Ajouter un nouvel objet dans le slot
+            items[slotIndex] = new ItemStack(itemData, quantity);
+        }
+
+        OnInventoryChanged?.Invoke();
+    }
+
+    public void RemoveItemFromSlot(int slotIndex, int quantity = 1)
+    {
+        if (slotIndex < 0 || slotIndex >= maxHotbarSlots + maxSlots)
+        {
+            Debug.LogWarning("Invalid slot index.");
+            return;
+        }
+
+        if (items.ContainsKey(slotIndex))
+        {
+            ItemStack itemStack = items[slotIndex];
+            itemStack.quantity -= quantity;
+
+            if (itemStack.quantity <= 0)
+            {
+                // Si la quantité tombe à 0 ou moins, retirer l'objet du slot
+                items.Remove(slotIndex);
+            }
+
+            OnInventoryChanged?.Invoke();
+        }
+        else
+        {
+            Debug.LogWarning($"No item found in slot {slotIndex}.");
         }
     }
 

@@ -7,12 +7,14 @@ public class HotbarController : MonoBehaviour
     [SerializeField] private GameObject selectorPrefab;
     [SerializeField] private Transform slotsParent;
     [SerializeField] private int currentSlot = 0;
+    public InventoryUI inventoryUI;
 
     private RectTransform[] slots;
     private GameObject selectorInstance;
 
     private void Start()
     {
+        inventoryUI.CreateInventorySlots();
         if (slots == null || slots.Length == 0)
         {
             slots = new RectTransform[slotsParent.childCount];
