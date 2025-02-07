@@ -155,7 +155,7 @@ public class TopDownMovement : MonoBehaviour
         if (nearestObject)
         {
             Debug.Log(nearestObject.name);
-            gameObject.GetComponent<SortingGroup>().sortingOrder = nearestObject.GetComponent<SortingGroup>().sortingOrder;
+            gameObject.GetComponent<SpriteRenderer>().sortingOrder = nearestObject.GetComponent<TilemapRenderer>().sortingOrder;
         }
     }
 
