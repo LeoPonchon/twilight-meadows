@@ -11,7 +11,7 @@ MonoBehaviour:
   m_Script: {fileID: 13312, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: farmland_31
   m_EditorClassIdentifier: 
-  m_Sprite: {fileID: 21300062, guid: 6786a8de1ded8e3b1fbaf9faf2d82b87, type: 3}
+  m_Sprite: {fileID: 21300062, guid: bc415e739acc79872b3c58bb15595b39, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_Transform:
     e00: 1

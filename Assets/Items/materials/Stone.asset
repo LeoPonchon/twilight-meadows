@@ -15,4 +15,6 @@ MonoBehaviour:
   itemName: Stone
   description: Some stone.
   icon: {fileID: 21300000, guid: 44f285c4ea63c7749a6a1c2d743ceff7, type: 3}
+  pickupSprite: {fileID: 0}
   isStackable: 1
+  sellPrice: 0

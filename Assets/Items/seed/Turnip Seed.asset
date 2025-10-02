@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cb2df2f5f6b6d24db8568437fc64a5d, type: 3}
+  m_Name: Turnip Seed
+  m_EditorClassIdentifier: 
+  itemName: Turnip Seeds
+  description: Some turnip seeds.
+  icon: {fileID: 21300000, guid: f89f2a9b17064bf4f9ed9ff08e753120, type: 3}
+  pickupSprite: {fileID: 21300000, guid: f89f2a9b17064bf4f9ed9ff08e753120, type: 3}
+  isStackable: 1
+  sellPrice: 0
+  growthSprites:
+  - {fileID: 21300000, guid: b316eec4b166f97419dfdd5df36bc4e6, type: 3}
+  - {fileID: 21300000, guid: faa8632a70c4a084da868ab7f7604d84, type: 3}
+  - {fileID: 21300000, guid: 07c6595349f562c44bea70ac48211859, type: 3}
+  witheredSprite: {fileID: 21300000, guid: 515e6aa0c4bf46745be8de238e529d25, type: 3}
+  growthSeason: 1
+  harvestProduct: {fileID: 11400000, guid: 461def33919a1ca4299bf61b39c18e86, type: 2}
+  harvestQuantity: 1
+  witherTime: 2
+  isPerennial: 0
+  productionInterval: 2
+  fruitSprite: {fileID: 0}

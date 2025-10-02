@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  
+  <!-- ========================================== -->
+  <!-- FOND ET INFRASTRUCTURE DE BASE -->
+  <!-- ========================================== -->
+  
+  <!-- Sol de base -->
+  <rect width="100%" height="100%" fill="#f5f2e7"/>
+  
+  <!-- Rivière -->
+  <g id="riviere">
+    <path d="M 60 220 C 200 180, 320 260, 420 300 C 520 340, 600 420, 740 560" 
+          fill="none" stroke="#6ec6ff" stroke-width="28" 
+          stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.9"/>
+    <path d="M 60 220 C 200 180, 320 260, 420 300 C 520 340, 600 420, 740 560" 
+          fill="none" stroke="#9bd8ff" stroke-width="16" 
+          stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.9"/>
+  </g>
+  
+  <!-- Chemins principaux -->
+  <g id="chemins">
+    <line x1="400" y1="100" x2="400" y2="700" 
+          stroke="#c2b280" stroke-width="40" stroke-linecap="round"/>
+    <line x1="100" y1="400" x2="700" y2="400" 
+          stroke="#c2b280" stroke-width="40" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Place centrale -->
+  <g id="place-centrale">
+    <circle cx="400" cy="400" r="110" fill="#eae3cf" stroke="#c2b280" stroke-width="3"/>
+    <circle cx="400" cy="400" r="50" fill="#87ceeb" stroke="#555" stroke-width="4"/>
+    <rect x="385" y="365" width="30" height="70" rx="6" 
+          fill="#d8d2c4" stroke="#555" stroke-width="2"/>
+  </g>
+  
+  <!-- ========================================== -->
+  <!-- BÂTIMENTS PRINCIPAUX -->
+  <!-- ========================================== -->
+  
+  <g id="batiments-principaux">
+    <!-- Église -->
+    <g id="eglise">
+      <rect x="370" y="180" width="60" height="60" fill="#d4a373" stroke="#000"/>
+      <text x="400" y="175" text-anchor="middle" font-size="14">Église</text>
+    </g>
+    
+    <!-- Forge -->
+    <g id="forge">
+      <rect x="250" y="370" width="60" height="60" fill="#a0522d" stroke="#000"/>
+      <text x="280" y="365" text-anchor="middle" font-size="14">Forge</text>
+    </g>
+    
+    <!-- Boulangerie -->
+    <g id="boulangerie">
+      <rect x="490" y="370" width="60" height="60" fill="#deb887" stroke="#000"/>
+      <text x="520" y="365" text-anchor="middle" font-size="14">Boulangerie</text>
+    </g>
+    
+    <!-- Boucherie -->
+    <g id="boucherie">
+      <rect x="370" y="490" width="60" height="60" fill="#cd5c5c" stroke="#000"/>
+      <text x="400" y="565" text-anchor="middle" font-size="14">Boucherie</text>
+    </g>
+    
+    <!-- Épicerie -->
+    <g id="epicerie">
+      <rect x="370" y="280" width="60" height="60" fill="#90ee90" stroke="#000"/>
+      <text x="400" y="270" text-anchor="middle" font-size="14">Épicerie</text>
+    </g>
+  </g>
+  
+  <!-- ========================================== -->
+  <!-- BÂTIMENTS PUBLICS -->
+  <!-- ========================================== -->
+  
+  <g id="batiments-publics">
+    <!-- Mairie -->
+    <g id="mairie">
+      <rect x="520" y="520" width="70" height="50" fill="#c68a3b" stroke="#000"/>
+      <text x="555" y="515" text-anchor="middle" font-size="14">Mairie</text>
+    </g>
+    
+    <!-- Taverne -->
+    <g id="taverne">
+      <rect x="500" y="240" width="70" height="50" fill="#8b4513" stroke="#000"/>
+      <text x="535" y="235" text-anchor="middle" font-size="14">Taverne</text>
+    </g>
+    
+    <!-- École -->
+    <g id="ecole">
+      <rect x="220" y="520" width="70" height="50" fill="#ffd27f" stroke="#000"/>
+      <text x="255" y="515" text-anchor="middle" font-size="14">École</text>
+    </g>
+    
+    <!-- Marché -->
+    <g id="marche">
+      <rect x="330" y="330" width="30" height="20" fill="#f2c94c" stroke="#000"/>
+      <rect x="370" y="330" width="30" height="20" fill="#f2994a" stroke="#000"/>
+      <rect x="410" y="330" width="30" height="20" fill="#f2c94c" stroke="#000"/>
+      <text x="400" y="320" text-anchor="middle" font-size="14">Marché</text>
+    </g>
+  </g>
+  
+  <!-- ========================================== -->
+  <!-- HABITATIONS -->
+  <!-- ========================================== -->
+  
+  <g id="maisons">
+    <!-- Maison 1 (Nord-Ouest) -->
+    <g id="maison-1">
+      <rect x="150" y="150" width="50" height="50" fill="#ffe4b5" stroke="#000"/>
+      <text x="175" y="140" text-anchor="middle" font-size="12">Maison</text>
+    </g>
+    
+    <!-- Maison 2 (Nord-Est) -->
+    <g id="maison-2">
+      <rect x="600" y="150" width="50" height="50" fill="#ffe4b5" stroke="#000"/>
+      <text x="625" y="140" text-anchor="middle" font-size="12">Maison</text>
+    </g>
+    
+    <!-- Maison 3 (Sud-Ouest) -->
+    <g id="maison-3">
+      <rect x="150" y="600" width="50" height="50" fill="#ffe4b5" stroke="#000"/>
+      <text x="175" y="590" text-anchor="middle" font-size="12">Maison</text>
+    </g>
+    
+    <!-- Maison 4 (Sud-Est) -->
+    <g id="maison-4">
+      <rect x="600" y="600" width="50" height="50" fill="#ffe4b5" stroke="#000"/>
+      <text x="625" y="590" text-anchor="middle" font-size="12">Maison</text>
+    </g>
+  </g>
+  
+  <!-- ========================================== -->
+  <!-- ZONE AGRICOLE -->
+  <!-- ========================================== -->
+  
+  <g id="zone-agricole">
+    <!-- Champs -->
+    <g id="champs">
+      <rect x="80" y="500" width="100" height="60" fill="#e6d27a" stroke="#a38a00"/>
+      <rect x="80" y="570" width="100" height="60" fill="#cde3a1" stroke="#6d8b3c"/>
+      <rect x="80" y="640" width="100" height="60" fill="#e6d27a" stroke="#a38a00"/>
+    </g>
+    
+    <!-- Grange -->
+    <g id="grange">
+      <rect x="190" y="540" width="60" height="45" fill="#b22222" stroke="#000"/>
+      <polygon points="190,540 220,520 250,540" fill="#8b0000" stroke="#000"/>
+      <text x="220" y="600" text-anchor="middle" font-size="12">Grange</text>
+    </g>
+    
+    <!-- Enclos -->
+    <g id="enclos">
+      <rect x="260" y="620" width="120" height="80" fill="none" 
+            stroke="#8b5a2b" stroke-width="3" stroke-dasharray="8 6"/>
+      <circle cx="320" cy="660" r="10" fill="#fff" stroke="#8b5a2b"/>
+      <text x="320" y="705" text-anchor="middle" font-size="12">Enclos</text>
+    </g>
+  </g>
+  
+  <!-- ========================================== -->
+  <!-- PARC ET VÉGÉTATION -->
+  <!-- ========================================== -->
+  
+  <g id="parc">
+    <!-- Zone du parc -->
+    <rect x="600" y="220" width="140" height="120" fill="#d7f0c8" stroke="#6aa84f"/>
+    
+    <!-- Arbres -->
+    <g id="arbres">
+      <g id="arbre-1">
+        <rect x="630" y="300" width="6" height="14" fill="#8b5a2b"/>
+        <circle cx="633" cy="295" r="12" fill="#3d8b3d" stroke="#2d682d"/>
+      </g>
+      <g id="arbre-2">
+        <rect x="690" y="280" width="6" height="14" fill="#8b5a2b"/>
+        <circle cx="693" cy="275" r="12" fill="#3d8b3d" stroke="#2d682d"/>
+      </g>
+      <g id="arbre-3">
+        <rect x="660" y="250" width="6" height="14" fill="#8b5a2b"/>
+        <circle cx="663" cy="245" r="12" fill="#3d8b3d" stroke="#2d682d"/>
+      </g>
+    </g>
+    
+    <!-- Mobilier urbain -->
+    <g id="mobilier">
+      <!-- Bancs -->
+      <rect x="610" y="320" width="20" height="4" fill="#a36f40"/>
+      <rect x="720" y="320" width="20" height="4" fill="#a36f40"/>
+      
+      <!-- Lampadaire -->
+      <rect x="670" y="330" width="2" height="18" fill="#444"/>
+      <circle cx="671" cy="330" r="4" fill="#ffd966" stroke="#d5aa00"/>
+    </g>
+  </g>
+  
+  <!-- ========================================== -->
+  <!-- LÉGENDE -->
+  <!-- ========================================== -->
+  
+  <g id="legende">
+    <rect x="560" y="600" width="200" height="120" fill="#ffffff" stroke="#333"/>
+    <text x="660" y="620" text-anchor="middle" font-size="14" font-weight="bold">Légende</text>
+    
+    <!-- Éléments de légende -->
+    <g id="legende-chemins">
+      <rect x="575" y="635" width="18" height="8" fill="#c2b280" stroke="#c2b280"/>
+      <text x="600" y="642" font-size="12">Chemin</text>
+    </g>
+    
+    <g id="legende-riviere">
+      <rect x="575" y="655" width="18" height="8" fill="#6ec6ff" stroke="#6ec6ff"/>
+      <text x="600" y="662" font-size="12">Rivière</text>
+    </g>
+    
+    <g id="legende-batiments">
+      <rect x="575" y="675" width="18" height="14" fill="#d4a373" stroke="#000"/>
+      <text x="600" y="685" font-size="12">Bâtiment</text>
+    </g>
+    
+    <g id="legende-parc">
+      <rect x="575" y="700" width="18" height="14" fill="#d7f0c8" stroke="#6aa84f"/>
+      <text x="600" y="710" font-size="12">Parc</text>
+    </g>
+  </g>
+  
+</svg>

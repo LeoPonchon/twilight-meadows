@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 8580f610648221b8cc0cc1da119024be
+guid: 47a66a60cca6d22060002e0bb0973ca2
 TextureImporter:
   internalIDToNameTable:
   - first:
@@ -143,6 +143,9 @@ TextureImporter:
   - first:
       213: 21300092
     second: sand_46
+  - first:
+      213: 21300094
+    second: sand_47
   externalObjects: {}
   serializedVersion: 12
   mipmaps:
@@ -422,8 +425,8 @@ TextureImporter:
       name: sand_8
       rect:
         serializedVersion: 2
-        x: 32
-        y: 64
+        x: 16
+        y: 0
         width: 16
         height: 16
       alignment: 0
@@ -444,7 +447,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 32
-        y: 48
+        y: 64
         width: 16
         height: 16
       alignment: 0
@@ -465,7 +468,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 32
-        y: 32
+        y: 48
         width: 16
         height: 16
       alignment: 0
@@ -486,7 +489,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 32
-        y: 16
+        y: 32
         width: 16
         height: 16
       alignment: 0
@@ -506,8 +509,8 @@ TextureImporter:
       name: sand_12
       rect:
         serializedVersion: 2
-        x: 48
-        y: 64
+        x: 32
+        y: 16
         width: 16
         height: 16
       alignment: 0
@@ -528,7 +531,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 48
-        y: 48
+        y: 64
         width: 16
         height: 16
       alignment: 0
@@ -549,7 +552,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 48
-        y: 32
+        y: 48
         width: 16
         height: 16
       alignment: 0
@@ -570,7 +573,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 48
-        y: 16
+        y: 32
         width: 16
         height: 16
       alignment: 0
@@ -590,8 +593,8 @@ TextureImporter:
       name: sand_16
       rect:
         serializedVersion: 2
-        x: 64
-        y: 64
+        x: 48
+        y: 16
         width: 16
         height: 16
       alignment: 0
@@ -612,7 +615,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 64
-        y: 48
+        y: 64
         width: 16
         height: 16
       alignment: 0
@@ -633,7 +636,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 64
-        y: 32
+        y: 48
         width: 16
         height: 16
       alignment: 0
@@ -654,7 +657,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 64
-        y: 16
+        y: 32
         width: 16
         height: 16
       alignment: 0
@@ -675,7 +678,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 64
-        y: 0
+        y: 16
         width: 16
         height: 16
       alignment: 0
@@ -695,8 +698,8 @@ TextureImporter:
       name: sand_21
       rect:
         serializedVersion: 2
-        x: 80
-        y: 64
+        x: 64
+        y: 0
         width: 16
         height: 16
       alignment: 0
@@ -717,7 +720,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 80
-        y: 48
+        y: 64
         width: 16
         height: 16
       alignment: 0
@@ -738,7 +741,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 80
-        y: 32
+        y: 48
         width: 16
         height: 16
       alignment: 0
@@ -759,7 +762,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 80
-        y: 16
+        y: 32
         width: 16
         height: 16
       alignment: 0
@@ -780,7 +783,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 80
-        y: 0
+        y: 16
         width: 16
         height: 16
       alignment: 0
@@ -800,8 +803,8 @@ TextureImporter:
       name: sand_26
       rect:
         serializedVersion: 2
-        x: 96
-        y: 64
+        x: 80
+        y: 0
         width: 16
         height: 16
       alignment: 0
@@ -822,7 +825,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 96
-        y: 48
+        y: 64
         width: 16
         height: 16
       alignment: 0
@@ -843,7 +846,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 96
-        y: 32
+        y: 48
         width: 16
         height: 16
       alignment: 0
@@ -864,7 +867,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 96
-        y: 16
+        y: 32
         width: 16
         height: 16
       alignment: 0
@@ -885,7 +888,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 96
-        y: 0
+        y: 16
         width: 16
         height: 16
       alignment: 0
@@ -905,8 +908,8 @@ TextureImporter:
       name: sand_31
       rect:
         serializedVersion: 2
-        x: 112
-        y: 64
+        x: 96
+        y: 0
         width: 16
         height: 16
       alignment: 0
@@ -927,7 +930,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 112
-        y: 48
+        y: 64
         width: 16
         height: 16
       alignment: 0
@@ -948,7 +951,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 112
-        y: 32
+        y: 48
         width: 16
         height: 16
       alignment: 0
@@ -969,7 +972,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 112
-        y: 16
+        y: 32
         width: 16
         height: 16
       alignment: 0
@@ -990,7 +993,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 112
-        y: 0
+        y: 16
         width: 16
         height: 16
       alignment: 0
@@ -1010,8 +1013,8 @@ TextureImporter:
       name: sand_36
       rect:
         serializedVersion: 2
-        x: 128
-        y: 64
+        x: 112
+        y: 0
         width: 16
         height: 16
       alignment: 0
@@ -1032,7 +1035,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 128
-        y: 48
+        y: 64
         width: 16
         height: 16
       alignment: 0
@@ -1053,7 +1056,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 128
-        y: 32
+        y: 48
         width: 16
         height: 16
       alignment: 0
@@ -1074,7 +1077,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 128
-        y: 16
+        y: 32
         width: 16
         height: 16
       alignment: 0
@@ -1095,7 +1098,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 128
-        y: 0
+        y: 16
         width: 16
         height: 16
       alignment: 0
@@ -1115,8 +1118,8 @@ TextureImporter:
       name: sand_41
       rect:
         serializedVersion: 2
-        x: 144
-        y: 64
+        x: 128
+        y: 0
         width: 16
         height: 16
       alignment: 0
@@ -1137,7 +1140,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 144
-        y: 48
+        y: 64
         width: 16
         height: 16
       alignment: 0
@@ -1158,7 +1161,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 144
-        y: 32
+        y: 48
         width: 16
         height: 16
       alignment: 0
@@ -1179,7 +1182,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 144
-        y: 16
+        y: 32
         width: 16
         height: 16
       alignment: 0
@@ -1199,8 +1202,8 @@ TextureImporter:
       name: sand_45
       rect:
         serializedVersion: 2
-        x: 160
-        y: 32
+        x: 144
+        y: 16
         width: 16
         height: 16
       alignment: 0
@@ -1221,7 +1224,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 160
-        y: 16
+        y: 32
         width: 16
         height: 16
       alignment: 0
@@ -1233,6 +1236,27 @@ TextureImporter:
       bones: []
       spriteID: c7305410000000000800000000000000
       internalID: 21300092
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sand_47
+      rect:
+        serializedVersion: 2
+        x: 160
+        y: 16
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e7305410000000000800000000000000
+      internalID: 21300094
       vertices: []
       indices: 
       edges: []
@@ -1290,6 +1314,7 @@ TextureImporter:
       sand_44: 21300088
       sand_45: 21300090
       sand_46: 21300092
+      sand_47: 21300094
       sand_5: 21300010
       sand_6: 21300012
       sand_7: 21300014
