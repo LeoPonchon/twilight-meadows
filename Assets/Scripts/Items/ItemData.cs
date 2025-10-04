@@ -10,7 +10,8 @@ public enum ToolKind
     WateringCan,
     FishingRod,
     Sword,
-    Spear
+    Spear,
+    Bow
 }
 
 [CreateAssetMenu(fileName = "NewItem", menuName = "Inventory/Item")]
@@ -25,8 +26,4 @@ public class ItemData : ScriptableObject
 
     [Header("Propriétés")]
     public bool isStackable;      // Indique si l'objet peut être empilé
-
-    [Header("Economy")]
-    [Tooltip("Prix de vente unitaire de cet item")]
-    public int sellPrice = 0;
 }

@@ -9,7 +9,6 @@ public class ItemInstance
     public string description;
     public Sprite icon;
     public bool isStackable;
-    public int sellPrice;
 
     public ItemInstance(ItemData originalData)
     {
@@ -18,7 +17,6 @@ public class ItemInstance
         this.description = originalData.description;
         this.icon = originalData.icon;
         this.isStackable = originalData.isStackable;
-        this.sellPrice = originalData.sellPrice;
     }
 
     public virtual bool CanUse() { return true; }
@@ -152,6 +150,34 @@ public class SpearInstance : ToolInstance
     public SpearInstance(SpearData originalData) : base(originalData, originalData.maxDurability, originalData.staminaCost, originalData.damage)
     {
         this.attackRange = originalData.attackRange;
+    }
+}
+
+[System.Serializable]
+public class SwordInstance : ToolInstance
+{
+    public float attackRange;
+    public float attackRadius;
+
+    public SwordInstance(SwordData originalData) : base(originalData, originalData.maxDurability, originalData.staminaCost, originalData.damage)
+    {
+        this.attackRange = originalData.attackRange;
+        this.attackRadius = originalData.attackRadius;
+    }
+}
+
+[System.Serializable]
+public class BowInstance : ToolInstance
+{
+    public float attackRange;
+    public float arrowSpeed;
+    public float accuracy;
+
+    public BowInstance(BowData originalData) : base(originalData, originalData.maxDurability, originalData.staminaCost, originalData.damage)
+    {
+        this.attackRange = originalData.attackRange;
+        this.arrowSpeed = originalData.arrowSpeed;
+        this.accuracy = originalData.accuracy;
     }
 }
 

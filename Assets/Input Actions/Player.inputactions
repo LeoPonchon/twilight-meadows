@@ -60,9 +60,18 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "OpenInventory",
+                    "name": "ToggleInventory",
                     "type": "PassThrough",
                     "id": "6e3b5d17-516f-471d-98a0-dfb3b08c77d4",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "Press",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Interact",
+                    "type": "PassThrough",
+                    "id": "e1acb25e-ec05-4cc1-a53d-79bfec636f5d",
                     "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "Press",
@@ -407,7 +416,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "OpenInventory",
+                    "action": "ToggleInventory",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -575,6 +584,17 @@
                     "action": "HotbarSlot9",
                     "isComposite": false,
                     "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "e04836fd-bde7-41b5-ab5a-9b10ac28d5c5",
+                    "path": "<Keyboard>/f",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "Interact",
+                    "isComposite": false,
+                    "isPartOfComposite": false
                 }
             ]
         },
@@ -682,18 +702,18 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "CloseInventory",
+                    "name": "CloseMenu",
                     "type": "PassThrough",
-                    "id": "39a16ea6-c711-47f6-b39a-96fbc0ecfff0",
+                    "id": "5adfaab7-abd1-44ff-b014-fe3e2888f797",
                     "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "Press",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "CloseMenu",
+                    "name": "ToggleInventory",
                     "type": "PassThrough",
-                    "id": "5adfaab7-abd1-44ff-b014-fe3e2888f797",
+                    "id": "39a16ea6-c711-47f6-b39a-96fbc0ecfff0",
                     "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "Press",
@@ -1121,23 +1141,23 @@
                 },
                 {
                     "name": "",
-                    "id": "5bf75972-1ed6-491b-a90f-d3f97a83c31f",
-                    "path": "<Keyboard>/e",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "Keyboard&Mouse",
-                    "action": "CloseInventory",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
                     "id": "483c8533-33ff-4280-8a56-e9ae1b6c4295",
                     "path": "<Keyboard>/escape",
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "CloseMenu",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "5bf75972-1ed6-491b-a90f-d3f97a83c31f",
+                    "path": "<Keyboard>/e",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "ToggleInventory",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

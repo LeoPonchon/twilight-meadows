@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 079c5f03f958c44479a26f896546f1a1, type: 3}
   m_Name: Lead Spear
   m_EditorClassIdentifier: 
-  itemName: 
-  description: 
+  itemName: Lead spear
+  description: A lead spear
   icon: {fileID: 21300000, guid: f93b8d7c2874a484aacf99358c28b28c, type: 3}
+  pickupSprite: {fileID: 0}
   isStackable: 0
   sellPrice: 0
   maxDurability: 100

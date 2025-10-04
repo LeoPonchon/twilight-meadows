@@ -231,19 +231,30 @@ public class InventoryManager : MonoBehaviour
     {
         if (playerInput == null) return;
 
-        if (playerInput.currentActionMap.name == "Game" && playerInput.actions["OpenInventory"].triggered)
+        // Toggle inventory dans les deux maps (Game et UI)
+        if (playerInput.actions["ToggleInventory"].triggered)
         {
-            OpenInventory();
+            ToggleInventory();
         }
-        
-        if (playerInput.currentActionMap.name == "UI" && playerInput.actions["CloseInventory"].triggered)
+    }
+    
+    public void ToggleInventory()
+    {
+        if (isInventoryOpen)
         {
             CloseInventory();
+        }
+        else
+        {
+            OpenInventory();
         }
     }
     
     public void OpenInventory()
     {
+        // Fermer le shop s'il est ouvert
+        CloseShopIfOpen();
+        
         isInventoryOpen = true;
         
         if (playerInput != null)
@@ -427,5 +438,18 @@ public class InventoryManager : MonoBehaviour
     {
         if (slotSelectorInstance != null)
             slotSelectorInstance.SetActive(false);
+    }
+    
+    private void CloseShopIfOpen()
+    {
+        // Trouver et fermer tous les shops ouverts
+        var npcVendors = FindObjectsOfType<NPCVendor>();
+        foreach (var vendor in npcVendors)
+        {
+            if (vendor.IsShopOpen)
+            {
+                vendor.CloseShop();
+            }
+        }
     }
 }

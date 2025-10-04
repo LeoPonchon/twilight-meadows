@@ -21,6 +21,8 @@ public class TileInteraction : MonoBehaviour
 	[SerializeField] private Tilemap overGrassTilemap;
 	[Tooltip("Tilemap pour les cultures")]
 	[SerializeField] private Tilemap cropsTilemap;
+	[Tooltip("Tilemap pour le foliage (hautes herbes)")]
+	[SerializeField] private Tilemap foliageTilemap;
 
 	[Header("Tiles de Base")]
 	[Tooltip("Tuile d'herbe de référence sur la tilemap Grass")]
@@ -581,10 +583,19 @@ public class TileInteraction : MonoBehaviour
 			return false;
 		TileBase dirtAtCell = overGrassTilemap.GetTile(cell);
 		bool isSoilAtCell = IsSoil(dirtAtCell);
+		
+		// Vérifier s'il y a une plantation sur cette tile
+		bool hasCrop = plantedCrops.ContainsKey(cell);
 
 		switch (tool)
 		{
 			case ToolKind.Shovel:
+				// Pelle: Empêcher l'utilisation sur les plantations
+				if (hasCrop)
+				{
+					return false; // Ne pas permettre d'utiliser la pelle sur une plantation
+				}
+				
 				// Pelle:
 				// - Si terrain = herbe et aucune dirt/farmland au-dessus → poser dirt
 				// - Si soil présent ET arrosé → remettre herbe (supprimer crop et eau)
@@ -592,6 +603,8 @@ public class TileInteraction : MonoBehaviour
 				if (IsGrass(terrainTile) && dirtAtCell == null)
 				{
 					overGrassTilemap.SetTile(cell, dirtTile);
+					// Supprimer aussi la tile de foliage au même endroit si elle existe
+					RemoveFoliageTileAtCell(cell);
 					changed = true;
 				}
 				else if (isSoilAtCell || IsWetSoil(dirtAtCell))
@@ -608,6 +621,12 @@ public class TileInteraction : MonoBehaviour
 				break;
 
 			case ToolKind.Hoe:
+				// Hoe: Empêcher l'utilisation sur les plantations
+				if (hasCrop)
+				{
+					return false; // Ne pas permettre d'utiliser la hoe sur une plantation
+				}
+				
 				// Hoe:
 				// - Si dirt présent → remplacer par soil (farmland)
 				// - Si soil présent → remplacer par dirt
@@ -623,6 +642,22 @@ public class TileInteraction : MonoBehaviour
 					changed = true;
 				}
 				break;
+				
+			case ToolKind.Pickaxe:
+				// Pioche: Peut détruire les plantations
+				if (hasCrop)
+				{
+					// Détruire la plantation
+					DestroyCropAtCell(cell);
+					changed = true;
+				}
+				else if (IsDirt(dirtAtCell) || isSoilAtCell || IsWetSoil(dirtAtCell))
+				{
+					// Retourner à l'herbe
+					overGrassTilemap.SetTile(cell, null);
+					changed = true;
+				}
+				break;
 		}
 
 		if (changed)
@@ -631,6 +666,21 @@ public class TileInteraction : MonoBehaviour
 		}
 
 		return changed;
+	}
+
+	private void DestroyCropAtCell(Vector3Int cell)
+	{
+		if (!plantedCrops.ContainsKey(cell))
+			return;
+
+		// Supprimer la tile de la cropsTilemap
+		if (cropsTilemap != null)
+		{
+			cropsTilemap.SetTile(cell, null);
+		}
+
+		// Supprimer la culture du dictionnaire
+		plantedCrops.Remove(cell);
 	}
 
 	private bool TryPlantSeed(Vector3 world, SeedData seedData)
@@ -893,5 +943,18 @@ public class TileInteraction : MonoBehaviour
 	private Vector3 CalculateRandomFinalPosition(Vector3 initialPosition)
 	{
 		return initialPosition + new Vector3(UnityEngine.Random.Range(-1.5f, 1.5f), UnityEngine.Random.Range(-1.5f, 1.5f), 0);
+	}
+	
+	private void RemoveFoliageTileAtCell(Vector3Int cell)
+	{
+		if (foliageTilemap == null)
+			return;
+		
+		// Supprimer la tile de foliage au même endroit si elle existe
+		TileBase foliageTile = foliageTilemap.GetTile(cell);
+		if (foliageTile != null)
+		{
+			foliageTilemap.SetTile(cell, null);
+		}
 	}
 }

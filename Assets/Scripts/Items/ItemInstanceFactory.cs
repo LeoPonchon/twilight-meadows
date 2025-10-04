@@ -73,6 +73,8 @@ public static class ItemInstanceFactory
         if (itemData is AxeData) return ToolKind.Axe;
         if (itemData is PickaxeData) return ToolKind.Pickaxe;
         if (itemData is SpearData) return ToolKind.Spear;
+        if (itemData is SwordData) return ToolKind.Sword;
+        if (itemData is BowData) return ToolKind.Bow;
         if (itemData is HoeData) return ToolKind.Hoe;
         if (itemData is SeedData) return ToolKind.None; // Les graines ne sont pas des outils
         

@@ -11,8 +11,6 @@ public class CameraZoom : MonoBehaviour
 
     private PlayerInput playerInput;
     private float currentZoomLevel;
-    private bool zoomPressed = false;
-    private bool unzoomPressed = false;
 
     void Start()
     {

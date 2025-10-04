@@ -1,4 +1,4 @@
-using System;
+                                        using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -294,6 +294,46 @@ public class Inventory : MonoBehaviour
     public bool IsHotbarSlot(int slotIndex)
     {
         return slotIndex >= 0 && slotIndex < maxHotbarSlots;
+    }
+    
+    /// <summary>
+    /// Vérifie si le joueur possède un item en quantité suffisante
+    /// </summary>
+    public bool HasItem(ItemData itemData, int quantity = 1)
+    {
+        if (itemData == null || quantity <= 0) return false;
+        
+        int totalQuantity = 0;
+        foreach (var item in items)
+        {
+            if (item.Value.itemData == itemData)
+            {
+                totalQuantity += item.Value.quantity;
+                if (totalQuantity >= quantity)
+                    return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /// <summary>
+    /// Obtient la quantité totale d'un item dans l'inventaire
+    /// </summary>
+    public int GetItemQuantity(ItemData itemData)
+    {
+        if (itemData == null) return 0;
+        
+        int totalQuantity = 0;
+        foreach (var item in items)
+        {
+            if (item.Value.itemData == itemData)
+            {
+                totalQuantity += item.Value.quantity;
+            }
+        }
+        
+        return totalQuantity;
     }
 
     #endregion
