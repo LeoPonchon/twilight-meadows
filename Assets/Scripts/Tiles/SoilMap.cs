@@ -1,30 +1,21 @@
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-/// <summary>
-/// Point centralisé pour gérer le sol (grass/dirt/soil) et leurs variations visuelles (humide/sec) sur les Tilemaps.
-/// - Evite de dupliquer des TileBase/Tilemap dans plusieurs systèmes
-/// - Fournit des méthodes utilitaires pour les outils (pelle/houe) et l'humidité
-/// </summary>
 public class SoilMap : MonoBehaviour
 {
     [Header("Tilemaps")]
-    [Tooltip("Tilemap de référence utilisée pour convertir world->cell (généralement la Grass)")]
-    [SerializeField] private Tilemap groundTilemap; // ex: grass
-
-    [Tooltip("Tilemap superposée contenant dirt/soil")]
-    [SerializeField] private Tilemap overGroundTilemap; // ex: overGrass
+    [SerializeField] private Tilemap groundTilemap;
+    [SerializeField] private Tilemap overGroundTilemap;
 
     [Header("Tiles de terrain")]
     [SerializeField] private TileBase grassTile;
     [SerializeField] private TileBase dirtTile;
-    [SerializeField] private TileBase soilTile; // farmland de base (sec si pas de variante dédiée)
+    [SerializeField] private TileBase soilTile;
 
     [Header("Variantes visuelles du soil (optionnel)")]
-    [SerializeField] private TileBase soilWetTile; // tuile soil humide
-    [SerializeField] private TileBase soilDryTile; // tuile soil sèche
+    [SerializeField] private TileBase soilWetTile;
+    [SerializeField] private TileBase soilDryTile;
 
-    // Conversion utilitaires
     public Vector3Int WorldToCell(Vector3 world)
     {
         if (groundTilemap == null)
@@ -104,7 +95,6 @@ public class SoilMap : MonoBehaviour
     {
         if (overGroundTilemap == null) return false;
         if (!IsDirtCell(cell)) return false;
-        // Par défaut, appliquer la version sèche si présente sinon soilTile
         if (soilDryTile != null)
             overGroundTilemap.SetTile(cell, soilDryTile);
         else

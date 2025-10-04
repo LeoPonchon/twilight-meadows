@@ -1,49 +1,81 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Cinemachine;
 
 public class CameraZoom : MonoBehaviour
 {
-    /* Faut rework le zoom de la caméra avec des boutons sur l'UI
     public CinemachineVirtualCamera virtualCamera;
-    public float zoomStep = 2f; // Taille de chaque cran de zoom
-    public float minZoom = 5f;  // Zoom minimum
-    public float maxZoom = 20f; // Zoom maximum
+    public float zoomStep = 1f;
+    public float minZoom = 5f;
+    public float maxZoom = 20f;
+
+    private PlayerInput playerInput;
+    private float currentZoomLevel;
+    private bool zoomPressed = false;
+    private bool unzoomPressed = false;
+
+    void Start()
+    {
+        playerInput = GetComponent<PlayerInput>();
+        if (playerInput == null)
+        {
+            playerInput = FindObjectOfType<PlayerInput>();
+        }
+        
+        // Initialiser le niveau de zoom actuel
+        if (virtualCamera != null)
+        {
+            currentZoomLevel = virtualCamera.m_Lens.OrthographicSize;
+        }
+    }
 
     void Update()
     {
-        if (virtualCamera != null)
+        if (virtualCamera == null)
         {
-            // Récupérer la molette de la souris
-            float scrollInput = Input.GetAxis("Mouse ScrollWheel");
+            Debug.LogError("CameraZoom: virtualCamera is null!");
+            return;
+        }
+        
+        if (playerInput == null)
+        {
+            Debug.LogError("CameraZoom: playerInput is null!");
+            return;
+        }
 
-            if (scrollInput != 0f)
-            {
-                // Pour une caméra orthographique
-                CinemachineComponentBase lensComponent = virtualCamera.GetCinemachineComponent<CinemachineFramingTransposer>();
-                if (lensComponent is CinemachineFramingTransposer framingTransposer)
-                {
-                    // Calculer le nouveau zoom
-                    float newOrthographicSize = Mathf.Clamp(
-                        virtualCamera.m_Lens.OrthographicSize - scrollInput * zoomStep,
-                        minZoom,
-                        maxZoom
-                    );
+        // DÃ©tecter les pressions de boutons (pas les maintiens)
+        bool zoomPressedThisFrame = playerInput.actions["ZoomCamera"].triggered;
+        bool unzoomPressedThisFrame = playerInput.actions["UnzoomCamera"].triggered;
 
-                    virtualCamera.m_Lens.OrthographicSize = newOrthographicSize;
-                }
-                // Pour une caméra en perspective (changer le Field of View)
-                else
-                {
-                    float newFieldOfView = Mathf.Clamp(
-                        virtualCamera.m_Lens.FieldOfView - scrollInput * zoomStep,
-                        minZoom,
-                        maxZoom
-                    );
-
-                    virtualCamera.m_Lens.FieldOfView = newFieldOfView;
-                }
-            }
+        if (zoomPressedThisFrame)
+        {
+            ZoomIn();
+        }
+        else if (unzoomPressedThisFrame)
+        {
+            ZoomOut();
         }
     }
-    */
+    
+    private void ZoomIn()
+    {
+        float newZoomLevel = Mathf.Clamp(currentZoomLevel - zoomStep, minZoom, maxZoom);
+        if (newZoomLevel != currentZoomLevel)
+        {
+            currentZoomLevel = newZoomLevel;
+            virtualCamera.m_Lens.OrthographicSize = currentZoomLevel;
+            Debug.Log($"Zoom IN to: {currentZoomLevel}");
+        }
+    }
+    
+    private void ZoomOut()
+    {
+        float newZoomLevel = Mathf.Clamp(currentZoomLevel + zoomStep, minZoom, maxZoom);
+        if (newZoomLevel != currentZoomLevel)
+        {
+            currentZoomLevel = newZoomLevel;
+            virtualCamera.m_Lens.OrthographicSize = currentZoomLevel;
+            Debug.Log($"Zoom OUT to: {currentZoomLevel}");
+        }
+    }
 }

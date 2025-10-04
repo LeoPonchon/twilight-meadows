@@ -23,27 +23,4 @@ public class WateringCanData : ItemData
     
     [Tooltip("Temps de rechargement en secondes")]
     public float refillTime = 2f;
-    
-    public bool CanWater()
-    {
-        return currentCapacity > 0;
-    }
-    
-    public bool UseWater()
-    {
-        if (currentCapacity <= 0) return false;
-        
-        currentCapacity--;
-        return true;
-    }
-    
-    public void Refill()
-    {
-        currentCapacity = maxCapacity;
-    }
-    
-    public float GetCapacityPercentage()
-    {
-        return (float)currentCapacity / maxCapacity;
-    }
 }

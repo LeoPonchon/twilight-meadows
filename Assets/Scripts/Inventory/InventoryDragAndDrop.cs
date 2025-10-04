@@ -7,7 +7,7 @@ using UnityEngine.UI;
 public class InventoryDragAndDrop : MonoBehaviour
 {
     [SerializeField] private Inventory playerInventory;
-    [SerializeField] private InventorySlotManager slotManager;
+    [SerializeField] private InventoryUI inventoryUI;
 
     private ItemData floatingItemData;
     private int floatingItemQuantity = 0;
@@ -26,7 +26,12 @@ public class InventoryDragAndDrop : MonoBehaviour
     {
         if (floatingItem != null && selectedSlotID.HasValue)
         {
-            slotManager.SetSlotImage(selectedSlotID.Value, floatingItem.GetComponent<Image>().sprite);
+            // Récupérer le slot depuis le manager
+            var slotObj = inventoryUI.GetSlotFromManager(selectedSlotID.Value);
+            if (slotObj != null)
+            {
+                inventoryUI.SetSlotImage(slotObj, floatingItem.GetComponent<Image>().sprite);
+            }
             Destroy(floatingItem);
             floatingItem = null;
         }
@@ -75,7 +80,7 @@ public class InventoryDragAndDrop : MonoBehaviour
         selectedSlotID = slotID;
         floatingItemData = item.itemData;
 
-        var slotObj = slotManager.GetSlot(slotID);
+        var slotObj = inventoryUI.GetSlotFromManager(slotID);
         if (slotObj == null) return;
 
         floatingItem = CreateFloatingItem(
@@ -83,10 +88,10 @@ public class InventoryDragAndDrop : MonoBehaviour
             slotObj.transform.GetChild(0).GetComponent<RectTransform>().rect.size
         );
 
-        slotManager.SetSlotImage(slotID, null);
+        inventoryUI.SetSlotImage(slotObj, null);
 
         playerInventory.RemoveItemFromSlot(slotID, floatingItemQuantity);
-        slotManager.UpdateInventoryUI();
+        inventoryUI.UpdateInventoryUI();
     }
 
     private void CompleteFloatingItem(int slotID, bool isRightClick = false)
@@ -112,7 +117,7 @@ public class InventoryDragAndDrop : MonoBehaviour
                 selectedSlotID = null;
             }
 
-            slotManager.UpdateInventoryUI();
+            inventoryUI.UpdateInventoryUI();
         }
         else
         {

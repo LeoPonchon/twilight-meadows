@@ -1,8 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Composant qui synchronise automatiquement l'order in layer avec celui du joueur
-/// </summary>
 public class PlayerLayerSync : MonoBehaviour
 {
     private SpriteRenderer spriteRenderer;
@@ -12,7 +9,6 @@ public class PlayerLayerSync : MonoBehaviour
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
         
-        // Trouver le joueur
         var player = FindObjectOfType<TopDownMovement>();
         if (player != null)
         {

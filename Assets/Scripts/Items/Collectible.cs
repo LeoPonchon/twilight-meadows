@@ -17,18 +17,12 @@ public class Collectible : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.CompareTag("Player")) // V�rifie si le joueur entre en contact
+        if (other.CompareTag("Player"))
         {
-            // V�rifie si l'objet peut �tre ajout�
             if (inventory.CanAddItem(itemData, 1))
             {
-                inventory.AddItem(itemData, 1); // Ajoute 1 unit� � l'inventaire
-                Debug.Log($"Ramass� : {itemData.itemName}");
-                Destroy(gameObject); // D�truit le sprite ramassable
-            }
-            else
-            {
-                Debug.Log($"Pas assez de place pour : {itemData.itemName}");
+                inventory.AddItem(itemData, 1);
+                Destroy(gameObject);
             }
         }
     }

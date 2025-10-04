@@ -9,7 +9,7 @@ public class TileInteraction : MonoBehaviour
 	[Header("Références Système")]
 	[SerializeField] private GameObject tilemapsRoot;
 	[SerializeField] private Inventory playerInventory;
-	[SerializeField] private HotbarController hotbarController;
+	[SerializeField] private InventoryUI inventoryUI;
 	[SerializeField] private SpriteRenderer playerSprite; // pour caler l'ordre d'affichage des drops
 	[SerializeField] private TimeManager timeManager;
 	[SerializeField] private GameObject collectiblePrefab; // Prefab pour les objets droppés
@@ -221,17 +221,10 @@ public class TileInteraction : MonoBehaviour
 
 			// Vérifier le bon outil selon le groupe ciblé
 			var group = dropLookup[clickedTile];
-			Debug.Log($"Tile cliquée: {clickedTile.name}");
-			Debug.Log($"Outil requis: {group.requiredToolKind}");
-			Debug.Log($"Outil sélectionné: {GetSelectedToolKind()}");
-			
 			if (!IsToolSelected(group)) 
 			{
-				Debug.Log("Mauvais outil ou pas d'outil sélectionné");
 				return;
 			}
-
-			Debug.Log("Outil correct, cassage de la tile");
 			BreakSingle(tm, cell);
 			break; // n'agir que sur la première tilemap correspondante
 		}
@@ -239,9 +232,10 @@ public class TileInteraction : MonoBehaviour
 
 	private ToolKind GetSelectedToolKind()
 	{
-		if (playerInventory == null || hotbarController == null)
+		if (playerInventory == null || inventoryUI == null)
 			return ToolKind.None;
-		int slot = hotbarController.GetCurrentSlot();
+		
+		int slot = inventoryUI.GetCurrentHotbarSlot();
 		ItemStack stack = playerInventory.GetItemInSlot(slot);
 		if (stack == null || stack.itemData == null)
 			return ToolKind.None;
@@ -252,18 +246,18 @@ public class TileInteraction : MonoBehaviour
 
 	private ItemData GetSelectedItemData()
 	{
-		if (playerInventory == null || hotbarController == null)
+		if (playerInventory == null || inventoryUI == null)
 			return null;
-		int slot = hotbarController.GetCurrentSlot();
+		int slot = inventoryUI.GetCurrentHotbarSlot();
 		ItemStack stack = playerInventory.GetItemInSlot(slot);
 		return stack?.itemData;
 	}
 
 	private ItemStack GetSelectedItemStack()
 	{
-		if (playerInventory == null || hotbarController == null)
+		if (playerInventory == null || inventoryUI == null)
 			return null;
-		int slot = hotbarController.GetCurrentSlot();
+		int slot = inventoryUI.GetCurrentHotbarSlot();
 		return playerInventory.GetItemInSlot(slot);
 	}
 
@@ -533,16 +527,11 @@ public class TileInteraction : MonoBehaviour
 				// Si on clique sur de l'eau, recharger l'arrosoir
 				if (isWaterAtCell)
 				{
-					if (wateringCanInstance.currentCapacity < wateringCanInstance.maxCapacity)
-					{
-						wateringCanInstance.Refill();
-						Debug.Log($"Arrosoir rechargé! Capacité: {wateringCanInstance.currentCapacity}/{wateringCanInstance.maxCapacity}");
-						return true;
-					}
-					else
-					{
-						Debug.Log("Arrosoir déjà plein!");
-					}
+				if (wateringCanInstance.currentCapacity < wateringCanInstance.maxCapacity)
+				{
+					wateringCanInstance.Refill();
+					return true;
+				}
 				}
 				// Si on clique sur du soil, arroser
 				else if (isSoilAtCell)
@@ -553,19 +542,17 @@ public class TileInteraction : MonoBehaviour
 						overGrassTilemap.SetTile(cell, wetSoilTile);
 						wateringCanInstance.UseWater();
 						
-						// Mettre à jour le jour d'arrosage pour les cultures à cette position
 						if (plantedCrops.ContainsKey(cell))
 						{
 							PlantedCrop crop = plantedCrops[cell];
 							crop.lastWateredDay = timeManager != null ? timeManager.GetCurrentDay() : 1;
 						}
 						
-						Debug.Log($"Case arrosée! Capacité restante: {wateringCanInstance.currentCapacity}");
 						return true;
 					}
 					else
 					{
-						Debug.Log("Arrosoir vide! Allez le recharger dans l'eau.");
+						return false;
 					}
 				}
 			}
@@ -670,8 +657,7 @@ public class TileInteraction : MonoBehaviour
 				// Vérifier que les sprites de croissance sont définis
 				if (seedData.growthSprites == null || seedData.growthSprites.Length == 0)
 				{
-					Debug.LogError($"ERREUR: Graine {seedData.itemName}: Aucun sprite de croissance défini. Ajoutez des sprites dans growthSprites.");
-					return false; // Empêcher la plantation
+					return false;
 				}
 				
 				// Créer la culture plantée avec des données d'instance
@@ -705,44 +691,26 @@ public class TileInteraction : MonoBehaviour
 
 	private void PlaceCropSprite(Vector3Int cell, int stage)
 	{
-		if (cropsTilemap == null)
-		{
-			Debug.LogWarning("cropsTilemap non assigné");
-			return;
-		}
+		if (cropsTilemap == null) return;
 
-		// Récupérer la culture plantée pour obtenir ses sprites
-		if (!plantedCrops.ContainsKey(cell))
-		{
-			Debug.LogWarning("Aucune culture trouvée à cette position");
-			return;
-		}
+		if (!plantedCrops.ContainsKey(cell)) return;
 
 		PlantedCrop crop = plantedCrops[cell];
-		if (crop.seedInstance.growthSprites == null || stage < 0 || stage >= crop.seedInstance.growthSprites.Length)
-		{
-			Debug.LogWarning("Sprites de croissance non assignés ou stage invalide");
-			return;
-		}
+		if (crop.seedInstance.growthSprites == null || stage < 0 || stage >= crop.seedInstance.growthSprites.Length) return;
 
-		// Créer une tile de culture avec le sprite approprié de l'instance
 		TileBase cropTile = CreateCropTile(crop.seedInstance.growthSprites[stage]);
 		cropsTilemap.SetTile(cell, cropTile);
 	}
 
 	private TileBase CreateCropTile(Sprite sprite)
 	{
-		// Créer un GameObject temporaire pour la tile
 		GameObject tempGO = new GameObject("TempCropTile");
 		SpriteRenderer sr = tempGO.AddComponent<SpriteRenderer>();
 		sr.sprite = sprite;
 		
-		// Créer une tile basique (approche simple)
-		// Dans un vrai projet, vous utiliseriez une classe Tile personnalisée
 		var tile = ScriptableObject.CreateInstance<Tile>();
 		tile.sprite = sprite;
 		
-		// Nettoyer le GameObject temporaire
 		DestroyImmediate(tempGO);
 		
 		return tile;
@@ -788,10 +756,10 @@ public class TileInteraction : MonoBehaviour
 
 	private bool IsToolSelected(TileDropGroup group)
 	{
-		if (playerInventory == null || hotbarController == null)
+		if (playerInventory == null || inventoryUI == null)
 			return false;
 
-		int slot = hotbarController.GetCurrentSlot();
+		int slot = inventoryUI.GetCurrentHotbarSlot();
 		ItemStack stack = playerInventory.GetItemInSlot(slot);
 		if (stack == null || stack.itemData == null)
 			return false;
@@ -883,28 +851,17 @@ public class TileInteraction : MonoBehaviour
 
 	private void SpawnDrop(ItemData itemData, Vector3 worldPosition)
 	{
-		if (collectiblePrefab == null)
-		{
-			Debug.LogError("CollectiblePrefab non assigné dans TileInteraction");
-			return;
-		}
+		if (collectiblePrefab == null) return;
 
-		// Instancier le prefab
 		var drop = Instantiate(collectiblePrefab, worldPosition, Quaternion.identity);
 		drop.name = $"Drop_{itemData.itemName}";
 
-		// Configurer le collectible
 		var collectible = drop.GetComponent<Collectible>();
 		if (collectible != null)
 		{
 			collectible.Setup(playerInventory, itemData);
 		}
-		else
-		{
-			Debug.LogError("Le prefab collectible ne contient pas le script Collectible");
-		}
 
-		// Animation de saut
 		StartCoroutine(SmoothParabolicJump(drop, worldPosition));
 	}
 
@@ -917,7 +874,7 @@ public class TileInteraction : MonoBehaviour
 			float maxHeight = 1f;
 			Vector3 finalPosition = CalculateRandomFinalPosition(initialPosition);
 			float elapsedTime = 0f;
-			while (elapsedTime < duration)
+			while (elapsedTime < duration && drop != null)
 			{
 				elapsedTime += Time.deltaTime;
 				float t = elapsedTime / duration;
@@ -926,7 +883,10 @@ public class TileInteraction : MonoBehaviour
 				drop.transform.position = horizontalPosition + Vector3.up * verticalOffset;
 				yield return null;
 			}
-			drop.transform.position = finalPosition;
+			if (drop != null)
+			{
+				drop.transform.position = finalPosition;
+			}
 		}
 	}
 

@@ -102,18 +102,9 @@ public class CollectiblesGenerator : MonoBehaviour
 
 	public void GenerateRocks()
 	{
-		if (rocksTilemap == null || terrainTilemap == null)
-		{
-			Debug.LogError("CollectiblesGenerator: rocksTilemap ou terrainTilemap non assignée");
-			return;
-		}
-		if (rockTiles == null || rockTiles.Length == 0)
-		{
-			Debug.LogError("CollectiblesGenerator: aucune tile de rocher fournie");
-			return;
-		}
+		if (rocksTilemap == null || terrainTilemap == null) return;
+		if (rockTiles == null || rockTiles.Length == 0) return;
 
-		// Obtenir les bornes de la tilemap de terrain
 		terrainTilemap.CompressBounds();
 		BoundsInt bounds = terrainTilemap.cellBounds;
 
@@ -127,50 +118,32 @@ public class CollectiblesGenerator : MonoBehaviour
 			{
 				Vector3Int cell = new Vector3Int(x, y, 0);
 
-				// Vérifier si le sol est autorisé
 				if (!IsGroundAllowed(cell)) continue;
-
-				// Vérifier si la position est libre
 				if (rocksTilemap.GetTile(cell) != null) continue;
 
-				// Calculer la probabilité selon la configuration
 				float currentProbability = rockProbability;
 				if (useRockGradient)
 				{
-					// Calculer la probabilité selon la position Y (gradient vertical)
 					float t = (yMax == yMin) ? 1f : Mathf.InverseLerp(yMin, yMax, y);
 					t = Mathf.Pow(t, rockGradientCurve);
 					currentProbability = Mathf.Lerp(minRockProbability, maxRockProbability, t);
 				}
 
-				// Générer selon la probabilité calculée
 				if (prng.NextDouble() <= currentProbability)
 				{
-					// Choisir une tile de rocher aléatoire
 					TileBase rockTile = rockTiles[prng.Next(rockTiles.Length)];
 					rocksTilemap.SetTile(cell, rockTile);
 					rocksPlaced++;
 				}
 			}
 		}
-
-		Debug.Log($"CollectiblesGenerator: {rocksPlaced} rochers placés");
 	}
 
 	public void GenerateTrees()
 	{
-		if (treesTilemap == null || terrainTilemap == null)
-		{
-			Debug.LogError("CollectiblesGenerator: treesTilemap ou terrainTilemap non assignée");
-			return;
-		}
-		if (treeTiles == null || treeTiles.Length == 0)
-		{
-			Debug.Log("CollectiblesGenerator: aucune tile d'arbre fournie");
-			return;
-		}
+		if (treesTilemap == null || terrainTilemap == null) return;
+		if (treeTiles == null || treeTiles.Length == 0) return;
 
-		// Obtenir les bornes de la tilemap de terrain
 		terrainTilemap.CompressBounds();
 		BoundsInt bounds = terrainTilemap.cellBounds;
 
@@ -184,34 +157,25 @@ public class CollectiblesGenerator : MonoBehaviour
 			{
 				Vector3Int cell = new Vector3Int(x, y, 0);
 
-				// Vérifier si le sol est autorisé
 				if (!IsGroundAllowed(cell)) continue;
-
-				// Vérifier si la position est libre
 				if (treesTilemap.GetTile(cell) != null) continue;
 
-				// Calculer la probabilité selon la configuration
 				float currentProbability = treeProbability;
 				if (useTreeGradient)
 				{
-					// Calculer la probabilité selon la position Y (gradient vertical)
 					float t = (yMax == yMin) ? 1f : Mathf.InverseLerp(yMin, yMax, y);
 					t = Mathf.Pow(t, treeGradientCurve);
 					currentProbability = Mathf.Lerp(minTreeProbability, maxTreeProbability, t);
 				}
 
-				// Générer selon la probabilité calculée
 				if (prng.NextDouble() <= currentProbability)
 				{
-					// Choisir une tile d'arbre aléatoire
 					TileBase treeTile = treeTiles[prng.Next(treeTiles.Length)];
 					treesTilemap.SetTile(cell, treeTile);
 					treesPlaced++;
 				}
 			}
 		}
-
-		Debug.Log($"CollectiblesGenerator: {treesPlaced} arbres placés");
 	}
 
 	private bool IsGroundAllowed(Vector3Int cell)

@@ -1,9 +1,6 @@
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-/// <summary>
-/// Classe de base pour les instances d'items
-/// </summary>
 [System.Serializable]
 public class ItemInstance
 {
@@ -28,9 +25,6 @@ public class ItemInstance
     public virtual bool Use() { return true; }
 }
 
-/// <summary>
-/// Instance d'arrosoir avec gestion de la capacité
-/// </summary>
 [System.Serializable]
 public class WateringCanInstance : ItemInstance
 {
@@ -87,9 +81,6 @@ public class WateringCanInstance : ItemInstance
     }
 }
 
-/// <summary>
-/// Instance d'outil avec gestion de la durabilité
-/// </summary>
 [System.Serializable]
 public class ToolInstance : ItemInstance
 {
@@ -129,9 +120,6 @@ public class ToolInstance : ItemInstance
     }
 }
 
-/// <summary>
-/// Instance de pelle
-/// </summary>
 [System.Serializable]
 public class ShovelInstance : ToolInstance
 {
@@ -140,9 +128,6 @@ public class ShovelInstance : ToolInstance
     }
 }
 
-/// <summary>
-/// Instance de hache
-/// </summary>
 [System.Serializable]
 public class AxeInstance : ToolInstance
 {
@@ -151,9 +136,6 @@ public class AxeInstance : ToolInstance
     }
 }
 
-/// <summary>
-/// Instance de pioche
-/// </summary>
 [System.Serializable]
 public class PickaxeInstance : ToolInstance
 {
@@ -162,9 +144,6 @@ public class PickaxeInstance : ToolInstance
     }
 }
 
-/// <summary>
-/// Instance de lance
-/// </summary>
 [System.Serializable]
 public class SpearInstance : ToolInstance
 {
@@ -176,9 +155,6 @@ public class SpearInstance : ToolInstance
     }
 }
 
-/// <summary>
-/// Instance de houe
-/// </summary>
 [System.Serializable]
 public class HoeInstance : ToolInstance
 {
@@ -187,9 +163,6 @@ public class HoeInstance : ToolInstance
     }
 }
 
-/// <summary>
-/// Instance de graine
-/// </summary>
 [System.Serializable]
 public class SeedInstance : ItemInstance
 {
@@ -223,6 +196,6 @@ public class SeedInstance : ItemInstance
 
     public override bool CanUse()
     {
-        return true; // Les graines peuvent toujours être plantées
+        return true;
     }
 }

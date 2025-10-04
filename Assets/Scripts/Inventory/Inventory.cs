@@ -5,7 +5,7 @@ using UnityEngine;
 /// <summary>
 /// Système d'inventaire principal qui gère les objets et leurs emplacements
 /// </summary>
-public class Inventory : MonoBehaviour, IInventorySystem
+public class Inventory : MonoBehaviour
 {
     #region Classes et Types
 
@@ -60,11 +60,7 @@ public class Inventory : MonoBehaviour, IInventorySystem
     /// </summary>
     public void Start()
     {
-        Debug.Log($"Démarrage de l'inventaire avec {defaultItems.Count} objets par défaut");
-
         InitializeInventory();
-
-        Debug.Log($"Inventaire initialisé avec {items.Count} objets");
     }
 
     #endregion
@@ -100,11 +96,7 @@ public class Inventory : MonoBehaviour, IInventorySystem
     {
         foreach (DefaultItem item in defaultItems)
         {
-            if (item.itemData == null)
-            {
-                Debug.LogError("Un objet par défaut a un ItemData null", this);
-                continue;
-            }
+            if (item.itemData == null) continue;
 
             if (item.isHotbarTool)
                 hotbarTools.Add(item);
@@ -123,12 +115,10 @@ public class Inventory : MonoBehaviour, IInventorySystem
         {
             if (hotbarIndex >= maxHotbarSlots)
             {
-                Debug.LogWarning($"Trop d'outils pour la hotbar: {tool.itemData.itemName} ajouté à l'inventaire", this);
                 AddItem(tool.itemData, tool.quantity);
                 continue;
             }
 
-            Debug.Log($"Ajout de l'outil {tool.itemData.itemName} à la hotbar (slot {hotbarIndex})");
             items[hotbarIndex] = new ItemStack(tool.itemData, tool.quantity);
             hotbarIndex++;
         }
@@ -141,7 +131,6 @@ public class Inventory : MonoBehaviour, IInventorySystem
     {
         foreach (DefaultItem inventoryItem in inventoryItems)
         {
-            Debug.Log($"Ajout de l'objet {inventoryItem.itemData.itemName} à l'inventaire");
             AddItem(inventoryItem.itemData, inventoryItem.quantity);
         }
     }
@@ -252,11 +241,7 @@ public class Inventory : MonoBehaviour, IInventorySystem
     {
         if (itemData == null || quantity <= 0) return;
 
-        if (slotIndex < 0 || slotIndex >= maxHotbarSlots + maxSlots)
-        {
-            Debug.LogWarning("Invalid slot index.");
-            return;
-        }
+        if (slotIndex < 0 || slotIndex >= maxHotbarSlots + maxSlots) return;
 
         if (items.ContainsKey(slotIndex))
         {
@@ -286,11 +271,7 @@ public class Inventory : MonoBehaviour, IInventorySystem
     {
         if (quantity <= 0) return;
 
-        if (slotIndex < 0 || slotIndex >= maxHotbarSlots + maxSlots)
-        {
-            Debug.LogWarning("Invalid slot index.");
-            return;
-        }
+        if (slotIndex < 0 || slotIndex >= maxHotbarSlots + maxSlots) return;
 
         if (items.TryGetValue(slotIndex, out ItemStack itemStack))
         {
@@ -343,7 +324,6 @@ public class Inventory : MonoBehaviour, IInventorySystem
             return;
         }
 
-        Debug.LogWarning("No available slots in inventory.");
     }
 
     #endregion

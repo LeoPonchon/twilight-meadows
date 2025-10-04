@@ -152,28 +152,6 @@ public class TopDownMovement : MonoBehaviour
     private void Update()
     {
         nearestObject = FindNearestObject();
-        if (nearestObject)
-        {
-            Debug.Log(nearestObject.name);
-			int targetOrder = playerSprite != null ? playerSprite.sortingOrder : 0;
-			var tileRenderer = nearestObject.GetComponent<TilemapRenderer>();
-			if (tileRenderer != null)
-			{
-				targetOrder = tileRenderer.sortingOrder;
-			}
-			else
-			{
-				var sr = nearestObject.GetComponent<SpriteRenderer>();
-				if (sr != null)
-				{
-					targetOrder = sr.sortingOrder;
-				}
-			}
-			if (playerSprite != null)
-			{
-				playerSprite.sortingOrder = targetOrder;
-			}
-        }
     }
 
     private void FixedUpdate()

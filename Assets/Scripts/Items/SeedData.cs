@@ -34,6 +34,14 @@ public class SeedData : ItemData
     
     public bool CanPlant()
     {
-        return true; // Les graines peuvent toujours être plantées
+        // Vérifier la saison actuelle
+        TimeManager timeManager = FindObjectOfType<TimeManager>();
+        if (timeManager == null) return false;
+        
+        int currentSeasonId = timeManager.GetCurrentSeasonId();
+        int requiredSeasonId = (int)growthSeason;
+        
+        // La graine ne peut être plantée que pendant sa saison de croissance
+        return currentSeasonId == requiredSeasonId;
     }
 }
