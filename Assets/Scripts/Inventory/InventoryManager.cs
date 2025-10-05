@@ -236,6 +236,12 @@ public class InventoryManager : MonoBehaviour
         {
             ToggleInventory();
         }
+        
+        // Fermer l'inventaire avec Échap quand il est ouvert
+        if (isInventoryOpen && playerInput.actions["CloseMenu"].triggered)
+        {
+            CloseInventory();
+        }
     }
     
     public void ToggleInventory()

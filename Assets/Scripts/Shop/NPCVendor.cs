@@ -13,17 +13,17 @@ public class NPCVendor : MonoBehaviour
     private PlayerInput playerInput;
     private bool isPlayerInRange = false;
     private bool isShopOpen = false;
+    private InputAction interactAction;
+    private InputAction closeMenuAction;
     
     private void Awake()
     {
-        // Trouver le PlayerInput
         playerInput = FindObjectOfType<PlayerInput>();
         if (playerInput == null)
         {
             Debug.LogError("NPCVendor: PlayerInput non trouvé dans la scène!");
         }
         
-        // S'assurer que le panel est fermé au démarrage
         if (shopPanel != null)
         {
             shopPanel.SetActive(false);
@@ -42,80 +42,44 @@ public class NPCVendor : MonoBehaviour
     private void OnDestroy()
     {
         CleanupInputEvents();
-        CleanupUIInputEvents();
     }
     
     private void SetupInputEvents()
     {
-        if (playerInput != null)
+        if (playerInput == null) return;
+        
+        // Récupérer les actions une seule fois
+        var gameActionMap = playerInput.actions.FindActionMap("Game");
+        var uiActionMap = playerInput.actions.FindActionMap("UI");
+        
+        if (gameActionMap != null)
         {
-            // S'abonner à l'action d'interaction depuis la map "Game"
-            var gameActionMap = playerInput.actions.FindActionMap("Game");
-            if (gameActionMap != null)
+            interactAction = gameActionMap.FindAction(interactionActionName);
+            if (interactAction != null)
             {
-                var interactAction = gameActionMap.FindAction(interactionActionName);
-                if (interactAction != null)
-                {
-                    interactAction.performed += OnInteractPerformed;
-                }
-                else
-                {
-                    Debug.LogWarning($"NPCVendor: Action '{interactionActionName}' non trouvée dans la map 'Game'");
-                }
+                interactAction.performed += OnInteractPerformed;
             }
             else
             {
-                Debug.LogWarning("NPCVendor: Action map 'Game' non trouvée");
+                Debug.LogWarning($"NPCVendor: Action '{interactionActionName}' non trouvée dans la map 'Game'");
             }
         }
-    }
-    
-    private void SetupUIInputEvents()
-    {
-        if (playerInput != null)
+        else
         {
-            // S'abonner à l'action CloseMenu depuis la map "UI"
-            var uiActionMap = playerInput.actions.FindActionMap("UI");
-            if (uiActionMap != null)
-            {
-                var closeMenuAction = uiActionMap.FindAction("CloseMenu");
-                if (closeMenuAction != null)
-                {
-                    closeMenuAction.performed += OnEscapePressed;
-                }
-            }
+            Debug.LogWarning("NPCVendor: Action map 'Game' non trouvée");
         }
-    }
-    
-    private void CleanupUIInputEvents()
-    {
-        if (playerInput != null)
+        
+        if (uiActionMap != null)
         {
-            var uiActionMap = playerInput.actions.FindActionMap("UI");
-            if (uiActionMap != null)
-            {
-                var closeMenuAction = uiActionMap.FindAction("CloseMenu");
-                if (closeMenuAction != null)
-                {
-                    closeMenuAction.performed -= OnEscapePressed;
-                }
-            }
+            closeMenuAction = uiActionMap.FindAction("CloseMenu");
         }
     }
     
     private void CleanupInputEvents()
     {
-        if (playerInput != null)
+        if (interactAction != null)
         {
-            var gameActionMap = playerInput.actions.FindActionMap("Game");
-            if (gameActionMap != null)
-            {
-                var interactAction = gameActionMap.FindAction(interactionActionName);
-                if (interactAction != null)
-                {
-                    interactAction.performed -= OnInteractPerformed;
-                }
-            }
+            interactAction.performed -= OnInteractPerformed;
         }
     }
     
@@ -148,8 +112,6 @@ public class NPCVendor : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             isPlayerInRange = false;
-            
-            // Fermer le magasin si le joueur s'éloigne
             if (isShopOpen)
             {
                 CloseShop();
@@ -177,17 +139,17 @@ public class NPCVendor : MonoBehaviour
             return;
         }
         
-        // Fermer l'inventaire s'il est ouvert
         CloseInventoryIfOpen();
-        
         shopPanel.SetActive(true);
         isShopOpen = true;
         
-        // Changer l'action map pour permettre la fermeture du magasin avec Échap
         if (playerInput != null)
         {
             playerInput.SwitchCurrentActionMap("UI");
-            SetupUIInputEvents(); // S'abonner aux événements UI
+            if (closeMenuAction != null)
+            {
+                closeMenuAction.performed += OnEscapePressed;
+            }
         }
     }
     
@@ -198,21 +160,21 @@ public class NPCVendor : MonoBehaviour
         shopPanel.SetActive(false);
         isShopOpen = false;
         
-        // Revenir à l'action map de jeu et nettoyer les événements UI
         if (playerInput != null)
         {
-            CleanupUIInputEvents(); // Se désabonner des événements UI
+            if (closeMenuAction != null)
+            {
+                closeMenuAction.performed -= OnEscapePressed;
+            }
             playerInput.SwitchCurrentActionMap("Game");
         }
     }
     
     private void OnDrawGizmos()
     {
-        // Dessiner l'état du magasin
         Gizmos.color = isShopOpen ? Color.red : Color.blue;
         Gizmos.DrawWireCube(transform.position + Vector3.up * 2f, Vector3.one * 0.5f);
         
-        // Dessiner l'état de détection du joueur
         Gizmos.color = isPlayerInRange ? Color.green : Color.gray;
         Gizmos.DrawWireSphere(transform.position, 0.5f);
     }
@@ -237,7 +199,6 @@ public class NPCVendor : MonoBehaviour
     
     private void CloseInventoryIfOpen()
     {
-        // Trouver et fermer l'inventaire s'il est ouvert
         var inventoryManager = FindObjectOfType<InventoryManager>();
         if (inventoryManager != null && inventoryManager.IsInventoryOpen)
         {

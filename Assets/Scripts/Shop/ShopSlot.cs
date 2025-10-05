@@ -6,7 +6,7 @@ using TMPro;
 /// <summary>
 /// Composant pour gérer les slots de magasin avec achat/vente
 /// </summary>
-public class ShopSlot : MonoBehaviour, IPointerClickHandler
+public class ShopSlot : MonoBehaviour
 {
     [Header("Configuration")]
     [SerializeField] private ItemData itemData;
@@ -16,8 +16,12 @@ public class ShopSlot : MonoBehaviour, IPointerClickHandler
     
     [Header("UI References")]
     [SerializeField] private Image itemIcon;
-    [SerializeField] private TextMeshProUGUI quantityText;
-    [SerializeField] private TextMeshProUGUI priceText;
+    [SerializeField] private TextMeshProUGUI itemQuantity;
+    [SerializeField] private TextMeshProUGUI itemName;
+    [SerializeField] private TextMeshProUGUI itemValueBuy;
+    [SerializeField] private TextMeshProUGUI itemValueSell;
+    [SerializeField] private Button buyButton;
+    [SerializeField] private Button sellButton;
     
     [Header("Références Système")]
     [SerializeField] private Inventory playerInventory;
@@ -33,6 +37,7 @@ public class ShopSlot : MonoBehaviour, IPointerClickHandler
     {
         InitializeStock();
         UpdateUI();
+        SetupButton();
     }
     
     private void InitializeReferences()
@@ -40,6 +45,30 @@ public class ShopSlot : MonoBehaviour, IPointerClickHandler
         // Trouver automatiquement les références si elles ne sont pas assignées
         if (playerInventory == null)
             playerInventory = FindObjectOfType<Inventory>();
+            
+            
+        // Trouver automatiquement les boutons s'ils ne sont pas assignés
+        if (buyButton == null)
+            buyButton = transform.Find("BuyButton")?.GetComponent<Button>();
+            
+        if (sellButton == null)
+            sellButton = transform.Find("SellButton")?.GetComponent<Button>();
+            
+        // Trouver automatiquement les textes s'ils ne sont pas assignés
+        if (itemQuantity == null)
+            itemQuantity = transform.Find("item_quantity")?.GetComponent<TextMeshProUGUI>();
+            
+        if (itemName == null)
+            itemName = transform.Find("item_name")?.GetComponent<TextMeshProUGUI>();
+            
+        if (itemValueBuy == null)
+            itemValueBuy = transform.Find("item_value_buy")?.GetComponent<TextMeshProUGUI>();
+            
+        if (itemValueSell == null)
+            itemValueSell = transform.Find("item_value_sell")?.GetComponent<TextMeshProUGUI>();
+            
+        if (itemIcon == null)
+            itemIcon = transform.Find("item_icon")?.GetComponent<Image>();
     }
     
     private void InitializeStock()
@@ -47,19 +76,19 @@ public class ShopSlot : MonoBehaviour, IPointerClickHandler
         currentStock = stockQuantity;
     }
     
-    // Interface IPointerClickHandler pour détecter les clics directement sur le slot
-    public void OnPointerClick(PointerEventData eventData)
+    private void SetupButton()
     {
-        // Détecter le type de clic
-        if (eventData.button == PointerEventData.InputButton.Left)
+        // Configurer les boutons BUY et SELL séparés
+        if (buyButton != null)
         {
-            // Clic gauche : Achat
-            TryBuyItem();
+            buyButton.onClick.RemoveAllListeners();
+            buyButton.onClick.AddListener(() => TryBuyItem());
         }
-        else if (eventData.button == PointerEventData.InputButton.Right)
+        
+        if (sellButton != null)
         {
-            // Clic droit : Vente
-            TrySellItem();
+            sellButton.onClick.RemoveAllListeners();
+            sellButton.onClick.AddListener(() => TrySellItem());
         }
     }
     
@@ -179,36 +208,86 @@ public class ShopSlot : MonoBehaviour, IPointerClickHandler
         }
         
         // Mettre à jour la quantité
-        if (quantityText != null)
+        if (itemQuantity != null)
         {
             if (itemData != null)
             {
                 if (stockQuantity == -1)
                 {
-                    quantityText.text = "∞";
+                    itemQuantity.text = "∞";
                 }
                 else
                 {
-                    quantityText.text = currentStock.ToString();
+                    itemQuantity.text = currentStock.ToString();
                 }
             }
             else
             {
-                quantityText.text = "";
+                itemQuantity.text = "";
             }
         }
         
-        // Mettre à jour le prix
-        if (priceText != null)
+        // Mettre à jour le nom de l'item
+        if (itemName != null)
         {
             if (itemData != null)
             {
-                priceText.text = $"A: {buyPrice} | V: {sellPrice}";
+                itemName.text = itemData.itemName;
             }
             else
             {
-                priceText.text = "";
+                itemName.text = "";
             }
+        }
+        
+        // Mettre à jour les prix d'achat et de vente
+        if (itemValueBuy != null)
+        {
+            if (itemData != null)
+            {
+                itemValueBuy.text = $"{buyPrice}G";
+            }
+            else
+            {
+                itemValueBuy.text = "";
+            }
+        }
+        
+        if (itemValueSell != null)
+        {
+            if (itemData != null)
+            {
+                itemValueSell.text = $"{sellPrice}G";
+            }
+            else
+            {
+                itemValueSell.text = "";
+            }
+        }
+        
+        // Mettre à jour l'état des boutons
+        UpdateButtonStates();
+    }
+    
+    private void UpdateButtonStates()
+    {
+        bool canBuy = itemData != null && 
+                     (stockQuantity == -1 || currentStock > 0) && 
+                     EconomyManager.Instance != null && 
+                     EconomyManager.Instance.CanSpend(buyPrice);
+                     
+        bool canSell = itemData != null && 
+                      playerInventory != null && 
+                      playerInventory.HasItem(itemData);
+        
+        if (buyButton != null)
+        {
+            buyButton.interactable = canBuy;
+        }
+        
+        if (sellButton != null)
+        {
+            sellButton.interactable = canSell;
         }
     }
     
@@ -232,6 +311,15 @@ public class ShopSlot : MonoBehaviour, IPointerClickHandler
         currentStock = newStock;
         UpdateUI();
     }
+    
+    /// <summary>
+    /// Méthode publique pour forcer la mise à jour des boutons (utile depuis l'extérieur)
+    /// </summary>
+    public void RefreshButtonStates()
+    {
+        UpdateButtonStates();
+    }
+    
     
     // Méthodes pour obtenir les informations
     public ItemData GetItemData() => itemData;

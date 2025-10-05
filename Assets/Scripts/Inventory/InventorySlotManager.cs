@@ -151,6 +151,23 @@ public class InventorySlotManager : MonoBehaviour
     
     private void AddSlotEvents(GameObject slot, int slotID, bool isHotbar)
     {
+        // Ajouter le composant Button si il n'existe pas
+        Button button = slot.GetComponent<Button>();
+        if (button == null)
+        {
+            button = slot.AddComponent<Button>();
+        }
+        
+        // Configurer le bouton pour être transparent
+        button.transition = Selectable.Transition.None;
+        
+        // Nettoyer les anciens listeners
+        button.onClick.RemoveAllListeners();
+        
+        // Ajouter le listener pour le clic gauche
+        button.onClick.AddListener(() => HandleSlotLeftClick(slotID));
+        
+        // Ajouter les EventTriggers pour le hover (Button ne gère que les clics)
         EventTrigger trigger = slot.GetComponent<EventTrigger>();
         if (trigger == null)
         {
@@ -164,6 +181,7 @@ public class InventorySlotManager : MonoBehaviour
         AddEventTrigger(trigger, EventTriggerType.PointerEnter, _ => HandleSlotHover(slotID, slot, isHotbar));
         AddEventTrigger(trigger, EventTriggerType.PointerExit, _ => HandleSlotExit(slotID, slot, isHotbar));
         
+        // Garder UIClickHandler pour les clics droits
         UIClickHandler clickHandler = slot.GetComponent<UIClickHandler>();
         if (clickHandler == null)
         {
@@ -175,7 +193,7 @@ public class InventorySlotManager : MonoBehaviour
             clickHandler.onRightClick.RemoveAllListeners();
         }
         
-        clickHandler.onLeftClick.AddListener(() => HandleSlotLeftClick(slotID));
+        // Seulement le clic droit via UIClickHandler
         clickHandler.onRightClick.AddListener(() => HandleSlotRightClick(slotID));
     }
     
