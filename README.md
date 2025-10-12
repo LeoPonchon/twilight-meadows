@@ -62,9 +62,3 @@ Le développement est organisé en sprints avec des itérations régulières pou
 
 - **Version Control** : Git (hébergé sur github)
 - **Communication** : Discord pour les discussions en temps réel
-- **Gestion de projet** : Utilisation d'outils comme Trello pour suivre l'avancement des tâches
-- **Tests** : Tests réguliers pour vérifier la stabilité du projet à chaque nouvelle fonctionnalité ajoutée
-  
-## **Notes Importantes**
-
-Ce projet est destiné à une commercialisation future. **Tout le contenu de ce projet, y compris les graphismes, les scripts et autres ressources, est la propriété exclusive de l'équipe de développement.** Il est interdit de distribuer ou d'utiliser ce contenu en dehors du cadre du développement interne sans autorisation explicite.
