@@ -65,7 +65,6 @@ public class InventoryManager : MonoBehaviour
     private void Update()
     {
         HandleHotbarScroll();
-        HandleInventoryInput();
     }
     
     private void SetupInputEvents()
@@ -79,6 +78,11 @@ public class InventoryManager : MonoBehaviour
             if (action != null)
             {
                 action.performed += _ => SelectHotbarSlot(i);
+                Debug.Log($"HotbarSlot{i + 1} action trouvée et connectée");
+            }
+            else
+            {
+                Debug.LogWarning($"HotbarSlot{i + 1} action non trouvée!");
             }
         }
     }
@@ -112,6 +116,7 @@ public class InventoryManager : MonoBehaviour
     {
         if (slotIndex >= 0 && slotIndex < playerInventory.maxHotbarSlots)
         {
+            Debug.Log($"Sélection du slot hotbar {slotIndex}");
             currentHotbarSlot = slotIndex;
             OnHotbarSlotChanged?.Invoke(currentHotbarSlot);
             UpdateHotbarSelectorPosition();
@@ -227,22 +232,6 @@ public class InventoryManager : MonoBehaviour
         }
     }
     
-    private void HandleInventoryInput()
-    {
-        if (playerInput == null) return;
-
-        // Toggle inventory dans les deux maps (Game et UI)
-        if (playerInput.actions["ToggleInventory"].triggered)
-        {
-            ToggleInventory();
-        }
-        
-        // Fermer l'inventaire avec Échap quand il est ouvert
-        if (isInventoryOpen && playerInput.actions["CloseMenu"].triggered)
-        {
-            CloseInventory();
-        }
-    }
     
     public void ToggleInventory()
     {
@@ -296,6 +285,7 @@ public class InventoryManager : MonoBehaviour
             playerInput.SwitchCurrentActionMap("Game");
         }
         isInventoryOpen = false;
+        UpdateHotbarSelectorPosition();
         OnInventoryStateChanged?.Invoke(false);
     }
     
@@ -378,12 +368,21 @@ public class InventoryManager : MonoBehaviour
         if (slotManager != null && slotManager.AllSlots.TryGetValue(currentHotbarSlot, out GameObject slot))
         {
             hotbarSelectorInstance.transform.position = slot.transform.position;
-            hotbarSelectorInstance.SetActive(true);
+            UpdateHotbarSelectorVisibility();
         }
         else
         {
             Debug.LogWarning($"Slot {currentHotbarSlot} not found! Available slots: {slotManager?.AllSlots.Count ?? 0}");
         }
+    }
+    
+    private void UpdateHotbarSelectorVisibility()
+    {
+        if (hotbarSelectorInstance == null) return;
+        
+        // Afficher le sélecteur seulement en mode Game
+        bool shouldShow = playerInput != null && playerInput.currentActionMap != null && playerInput.currentActionMap.name == "Game";
+        hotbarSelectorInstance.SetActive(shouldShow);
     }
     
     

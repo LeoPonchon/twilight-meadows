@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cb2df2f5f6b6d24db8568437fc64a5d, type: 3}
+  m_Name: Zucchini Seed
+  m_EditorClassIdentifier: 
+  itemName: Zucchini Seeds
+  description: Refreshing zucchini seeds. Great for summer salads!
+  icon: {fileID: 21300000, guid: 3cf892b01d4ccb749997587da77af904, type: 3}
+  pickupSprite: {fileID: 21300000, guid: 3cf892b01d4ccb749997587da77af904, type: 3}
+  isStackable: 1
+  growthSprites:
+  - {fileID: 21300000, guid: 01d469144cf64ef42b54943b668f09e5, type: 3}
+  - {fileID: 21300000, guid: 6ba3bec8199a2154da67d181cc7e4c35, type: 3}
+  - {fileID: 21300000, guid: 82c109481749689489140e963591fbeb, type: 3}
+  - {fileID: 21300000, guid: d4a28601be7ac4940b406c5d17dec4ed, type: 3}
+  witheredSprite: {fileID: 21300000, guid: 2b1abf60047e77f4892b9e619e61aa9b, type: 3}
+  growthSeason: 2
+  harvestProduct: {fileID: 11400000, guid: 6b6a39492733c164bad02aff30c11a03, type: 2}
+  harvestQuantity: 2
+  witherTime: 2
+  isPerennial: 0
+  productionInterval: 2
+  fruitSprite: {fileID: 0}

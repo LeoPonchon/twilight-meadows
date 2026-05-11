@@ -260,8 +260,8 @@ TextureImporter:
       name: Character-Sheet_7
       rect:
         serializedVersion: 2
-        x: 96
-        y: 64
+        x: 0
+        y: 32
         width: 32
         height: 32
       alignment: 9
@@ -281,7 +281,7 @@ TextureImporter:
       name: Character-Sheet_8
       rect:
         serializedVersion: 2
-        x: 0
+        x: 32
         y: 32
         width: 32
         height: 32
@@ -302,7 +302,7 @@ TextureImporter:
       name: Character-Sheet_9
       rect:
         serializedVersion: 2
-        x: 32
+        x: 64
         y: 32
         width: 32
         height: 32
@@ -323,8 +323,8 @@ TextureImporter:
       name: Character-Sheet_10
       rect:
         serializedVersion: 2
-        x: 64
-        y: 32
+        x: 0
+        y: 0
         width: 32
         height: 32
       alignment: 9
@@ -344,8 +344,8 @@ TextureImporter:
       name: Character-Sheet_11
       rect:
         serializedVersion: 2
-        x: 96
-        y: 32
+        x: 32
+        y: 0
         width: 32
         height: 32
       alignment: 9
@@ -365,7 +365,7 @@ TextureImporter:
       name: Character-Sheet_12
       rect:
         serializedVersion: 2
-        x: 0
+        x: 64
         y: 0
         width: 32
         height: 32
@@ -378,69 +378,6 @@ TextureImporter:
       bones: []
       spriteID: 8dd424a63c262a247ba45d7e987f1187
       internalID: 316928050
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Character-Sheet_13
-      rect:
-        serializedVersion: 2
-        x: 32
-        y: 0
-        width: 32
-        height: 32
-      alignment: 9
-      pivot: {x: 0.5, y: 0.1}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 3ab5c988071abdd45be952ba3ad2921e
-      internalID: 1955262149
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Character-Sheet_14
-      rect:
-        serializedVersion: 2
-        x: 64
-        y: 0
-        width: 32
-        height: 32
-      alignment: 9
-      pivot: {x: 0.5, y: 0.1}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 506e82d107020f0478ccff2874948d41
-      internalID: -1814129546
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Character-Sheet_15
-      rect:
-        serializedVersion: 2
-        x: 96
-        y: 0
-        width: 32
-        height: 32
-      alignment: 9
-      pivot: {x: 0.5, y: 0.1}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 5f8cc035e9d4d7e4fb80cbff811c52fd
-      internalID: -1453338721
       vertices: []
       indices: 
       edges: []
@@ -461,9 +398,6 @@ TextureImporter:
       Character-Sheet_10: -434173981
       Character-Sheet_11: 1678790113
       Character-Sheet_12: 316928050
-      Character-Sheet_13: 1955262149
-      Character-Sheet_14: -1814129546
-      Character-Sheet_15: -1453338721
       Character-Sheet_2: -345842776
       Character-Sheet_3: 1235525882
       Character-Sheet_4: -830154684

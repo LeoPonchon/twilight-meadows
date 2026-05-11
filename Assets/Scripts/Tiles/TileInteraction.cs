@@ -12,6 +12,7 @@ public class TileInteraction : MonoBehaviour
 	[SerializeField] private InventoryUI inventoryUI;
 	[SerializeField] private SpriteRenderer playerSprite; // pour caler l'ordre d'affichage des drops
 	[SerializeField] private TimeManager timeManager;
+	[SerializeField] private WeatherManager weatherManager;
 	[SerializeField] private GameObject collectiblePrefab; // Prefab pour les objets droppés
 
 	[Header("Sol / Autotiling (Grass + Dirt/Farmland)")]
@@ -124,11 +125,22 @@ public class TileInteraction : MonoBehaviour
 			timeManager = FindObjectOfType<TimeManager>();
 		}
 		
+		if (weatherManager == null)
+		{
+			weatherManager = FindObjectOfType<WeatherManager>();
+		}
+		
 		// S'abonner aux changements de saison et de jour
 		if (timeManager != null)
 		{
 			timeManager.OnSeasonStarted += HandleSeasonChanged;
 			timeManager.OnDayChanged += HandleDayChanged;
+		}
+		
+		// S'abonner aux changements de météo pour arroser immédiatement
+		if (weatherManager != null)
+		{
+			weatherManager.OnWeatherChanged += HandleWeatherChanged;
 		}
 	}
 	
@@ -139,6 +151,11 @@ public class TileInteraction : MonoBehaviour
 		{
 			timeManager.OnSeasonStarted -= HandleSeasonChanged;
 			timeManager.OnDayChanged -= HandleDayChanged;
+		}
+		
+		if (weatherManager != null)
+		{
+			weatherManager.OnWeatherChanged -= HandleWeatherChanged;
 		}
 	}
 	
@@ -159,25 +176,74 @@ public class TileInteraction : MonoBehaviour
 		}
 	}
 	
+	private void HandleWeatherChanged(WeatherType weather)
+	{
+		// Arroser immédiatement tous les sols quand il commence à pleuvoir
+		if (weather == WeatherType.Rainy || weather == WeatherType.Stormy)
+		{
+			WaterAllSoils();
+		}
+		else
+		{
+			// Sécher tous les sols mouillés quand il arrête de pleuvoir
+			DryAllWetSoils();
+		}
+	}
+	
 	private void HandleDayChanged(int day)
 	{
-		// Sécher tous les sols mouillés à la fin de chaque journée
-		if (overGrassTilemap != null)
+		// Sécher tous les sols mouillés au changement de jour (fin de journée)
+		DryAllWetSoils();
+	}
+	
+	private void WaterAllSoils()
+	{
+		if (overGrassTilemap == null || timeManager == null) return;
+		
+		int currentDay = timeManager.GetCurrentDay();
+		
+		// Parcourir toutes les tiles de la tilemap
+		BoundsInt bounds = overGrassTilemap.cellBounds;
+		for (int x = bounds.xMin; x < bounds.xMax; x++)
 		{
-			// Parcourir toutes les tiles de la tilemap
-			BoundsInt bounds = overGrassTilemap.cellBounds;
-			for (int x = bounds.xMin; x < bounds.xMax; x++)
+			for (int y = bounds.yMin; y < bounds.yMax; y++)
 			{
-				for (int y = bounds.yMin; y < bounds.yMax; y++)
+				Vector3Int cell = new Vector3Int(x, y, 0);
+				TileBase tile = overGrassTilemap.GetTile(cell);
+				
+				// Si c'est un sol normal, le transformer en sol mouillé
+				if (IsSoil(tile))
 				{
-					Vector3Int cell = new Vector3Int(x, y, 0);
-					TileBase tile = overGrassTilemap.GetTile(cell);
+					overGrassTilemap.SetTile(cell, wetSoilTile);
 					
-					// Si c'est un sol mouillé, le transformer en sol normal
-					if (IsWetSoil(tile))
+					// Mettre à jour la date d'arrosage des cultures
+					if (plantedCrops.ContainsKey(cell))
 					{
-						overGrassTilemap.SetTile(cell, soilTile);
+						PlantedCrop crop = plantedCrops[cell];
+						crop.lastWateredDay = currentDay;
 					}
+				}
+			}
+		}
+	}
+	
+	private void DryAllWetSoils()
+	{
+		if (overGrassTilemap == null) return;
+		
+		// Parcourir toutes les tiles de la tilemap
+		BoundsInt bounds = overGrassTilemap.cellBounds;
+		for (int x = bounds.xMin; x < bounds.xMax; x++)
+		{
+			for (int y = bounds.yMin; y < bounds.yMax; y++)
+			{
+				Vector3Int cell = new Vector3Int(x, y, 0);
+				TileBase tile = overGrassTilemap.GetTile(cell);
+				
+				// Si c'est un sol mouillé, le transformer en sol normal
+				if (IsWetSoil(tile))
+				{
+					overGrassTilemap.SetTile(cell, soilTile);
 				}
 			}
 		}
@@ -803,6 +869,7 @@ public class TileInteraction : MonoBehaviour
 			}
 		}
 	}
+
 
 	private bool IsToolSelected(TileDropGroup group)
 	{

@@ -24,8 +24,14 @@ public class TimeManager     : MonoBehaviour
 
     public event Action<int, string> OnSeasonStarted;
     public event Action<int> OnDayChanged;
+    
+    private WeatherManager weatherManager;
 
-    void Start() => ppv = gameObject.GetComponent<Volume>();
+    void Start()
+    {
+        ppv = gameObject.GetComponent<Volume>();
+        weatherManager = FindObjectOfType<WeatherManager>();
+    }
 
     void FixedUpdate()
     {
@@ -87,14 +93,46 @@ public class TimeManager     : MonoBehaviour
 
     public void ControlPPV()
     {
-        if (hours >= 21 && hours < 22) // dusk at 21:00 / 9pm    -   until 22:00 / 10pm
+        // Déterminer la luminosité de base en journée (0 = plein jour, 1 = pleine nuit)
+        // Sous la pluie/orage, on plafonne la baisse à 0.5 pour un jour plus terne
+        float baseDayWeight = 0f;
+        if (weatherManager != null)
         {
-            ppv.weight = (float)mins / 60; // since dusk is 1 hr, we just divide the mins by 60 which will slowly increase from 0 - 1 
+            var w = weatherManager.GetCurrentWeather();
+            if (w == WeatherType.Rainy || w == WeatherType.Stormy)
+            {
+                baseDayWeight = 0.5f;
+            }
         }
-        else if (hours >= 6 && hours < 7) // Dawn at 6:00 / 6am    -   until 7:00 / 7am
+        // Si weatherManager n'est pas encore initialisé, utiliser la valeur par défaut (jour ensoleillé)
+
+        // Transition jour → nuit (18h à 24h)
+        if (hours >= 18 && hours < 24)
         {
-            ppv.weight = 1 - (float)mins / 60; // we minus 1 because we want it to go from 1 - 0
+            // Calculer le pourcentage dans la période 18h-24h (6 heures)
+            float progress = ((hours - 18) * 60 + mins) / (6f * 60f);
+            // Part de jour (0) vers nuit (1)
+            ppv.weight = Mathf.Lerp(baseDayWeight, 1f, progress);
         }
+        // Nuit complète (0h à 6h)
+        else if (hours >= 0 && hours < 6)
+        {
+            ppv.weight = 1f;
+        }
+        // Transition nuit → jour (6h à 12h)
+        else if (hours >= 6 && hours < 12)
+        {
+            // Calculer le pourcentage dans la période 6h-12h (6 heures)
+            float progress = ((hours - 6) * 60 + mins) / (6f * 60f);
+            // Nuit (1) vers jour (0) mais plafonné à baseDayWeight si pluie
+            ppv.weight = Mathf.Lerp(1f, baseDayWeight, progress);
+        }
+        // Jour complet (12h à 18h)
+        else
+        {
+            ppv.weight = baseDayWeight;
+        }
+        
         ControlLights();
     }
 

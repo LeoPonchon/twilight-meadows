@@ -1,9 +1,10 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public class PlayerLayerSync : MonoBehaviour
 {
     private SpriteRenderer spriteRenderer;
-    private SpriteRenderer playerSprite;
+    private SortingGroup playerSortingGroup;
 
     private void Awake()
     {
@@ -12,7 +13,7 @@ public class PlayerLayerSync : MonoBehaviour
         var player = FindObjectOfType<TopDownMovement>();
         if (player != null)
         {
-            playerSprite = player.GetComponent<SpriteRenderer>();
+            playerSortingGroup = player.GetComponent<SortingGroup>();
         }
     }
 
@@ -23,9 +24,9 @@ public class PlayerLayerSync : MonoBehaviour
 
     private void SyncWithPlayer()
     {
-        if (spriteRenderer == null || playerSprite == null) return;
+        if (spriteRenderer == null || playerSortingGroup == null) return;
 
-        spriteRenderer.sortingLayerID = playerSprite.sortingLayerID;
-        spriteRenderer.sortingOrder = playerSprite.sortingOrder;
+        spriteRenderer.sortingLayerID = playerSortingGroup.sortingLayerID;
+        spriteRenderer.sortingOrder = playerSortingGroup.sortingOrder;
     }
 }

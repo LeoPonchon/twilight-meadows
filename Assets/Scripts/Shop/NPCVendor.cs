@@ -69,10 +69,7 @@ public class NPCVendor : MonoBehaviour
             Debug.LogWarning("NPCVendor: Action map 'Game' non trouvée");
         }
         
-        if (uiActionMap != null)
-        {
-            closeMenuAction = uiActionMap.FindAction("CloseMenu");
-        }
+        // Désactivé: ne pas récupérer l'action CloseMenu pour fermer le shop
     }
     
     private void CleanupInputEvents()
@@ -91,13 +88,7 @@ public class NPCVendor : MonoBehaviour
         }
     }
     
-    private void OnEscapePressed(InputAction.CallbackContext context)
-    {
-        if (isShopOpen)
-        {
-            CloseShop();
-        }
-    }
+    // Supprimé: OnEscapePressed désactivé pour éviter la fermeture via input
     
     private void OnTriggerEnter2D(Collider2D other)
     {
@@ -146,10 +137,6 @@ public class NPCVendor : MonoBehaviour
         if (playerInput != null)
         {
             playerInput.SwitchCurrentActionMap("UI");
-            if (closeMenuAction != null)
-            {
-                closeMenuAction.performed += OnEscapePressed;
-            }
         }
     }
     
@@ -162,10 +149,6 @@ public class NPCVendor : MonoBehaviour
         
         if (playerInput != null)
         {
-            if (closeMenuAction != null)
-            {
-                closeMenuAction.performed -= OnEscapePressed;
-            }
             playerInput.SwitchCurrentActionMap("Game");
         }
     }

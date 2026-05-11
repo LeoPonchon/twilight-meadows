@@ -17,8 +17,8 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: f89f2a9b17064bf4f9ed9ff08e753120, type: 3}
   pickupSprite: {fileID: 21300000, guid: f89f2a9b17064bf4f9ed9ff08e753120, type: 3}
   isStackable: 1
-  sellPrice: 0
   growthSprites:
+  - {fileID: 21300000, guid: d8b9d47091c9eb84c8daf0d4199386eb, type: 3}
   - {fileID: 21300000, guid: b316eec4b166f97419dfdd5df36bc4e6, type: 3}
   - {fileID: 21300000, guid: faa8632a70c4a084da868ab7f7604d84, type: 3}
   - {fileID: 21300000, guid: 07c6595349f562c44bea70ac48211859, type: 3}

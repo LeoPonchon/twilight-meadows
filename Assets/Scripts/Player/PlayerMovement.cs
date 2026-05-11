@@ -23,6 +23,7 @@ public class TopDownMovement : MonoBehaviour
     private Animator animator;
     private PlayerInput playerInput;
     private SpriteRenderer playerSprite;
+    private PlayerSpriteManager spriteManager;
 
     private Vector2 movementInput;
     private float currentSpeed;
@@ -79,6 +80,7 @@ public class TopDownMovement : MonoBehaviour
         animator = GetComponent<Animator>();
         playerInput = GetComponent<PlayerInput>();
         playerSprite = GetComponent<SpriteRenderer>();
+        spriteManager = GetComponent<PlayerSpriteManager>();
 
         currentSpeed = speed;
 
@@ -146,6 +148,12 @@ public class TopDownMovement : MonoBehaviour
         else if (movementInput.x < 0)
         {
             animatorOverrideController["idle_player"] = idleLeftClip;
+        }
+        
+        // Notifier le sprite manager pour synchroniser les sprites
+        if (spriteManager != null)
+        {
+            spriteManager.UpdateCustomization();
         }
     }
 
