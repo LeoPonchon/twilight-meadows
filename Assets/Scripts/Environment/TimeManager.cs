@@ -39,9 +39,15 @@ public class TimeManager : MonoBehaviour
         {
             sceneContext = FindObjectOfType<SceneContext>();
         }
+        if (sceneContext == null)
+        {
+            Debug.LogError("TimeManager: Missing SceneContext in scene.", this);
+            enabled = false;
+            return;
+        }
         if (weatherManager == null)
         {
-            weatherManager = sceneContext != null ? sceneContext.Get<WeatherManager>() : FindObjectOfType<WeatherManager>();
+            weatherManager = sceneContext.GetRequired<WeatherManager>(this, nameof(weatherManager));
         }
 
         clock = new GameClock(startingHours, startingDay, startingSeasonId, startingYear);

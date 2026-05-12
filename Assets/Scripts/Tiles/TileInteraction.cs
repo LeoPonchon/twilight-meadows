@@ -63,17 +63,17 @@ public class TileInteraction : MonoBehaviour
 	[Header("Configuration des Drops")]
 	[SerializeField] private List<TileDropGroup> dropGroups = new List<TileDropGroup>();
 
-	private FarmingWorld farmingWorld;
-	private SoilWorld soilWorld;
+	private CropService cropService;
+	private SoilService soilService;
 	private Dictionary<Vector3Int, PlantedCrop> plantedCrops = new Dictionary<Vector3Int, PlantedCrop>();
 	private int lastFarmingTickDay = -1;
-	private Dictionary<TileBase, TileDropGroup> dropLookup;
+	private DropService dropService;
 	private List<Tilemap> targetTilemaps;
 
 	private void Awake()
 	{
-		farmingWorld = new FarmingWorld();
-		soilWorld = new SoilWorld();
+		cropService = new CropService();
+		soilService = new SoilService();
 		InitializeDropLookup();
 		InitializeTargetTilemaps();
 		InitializePlayerSprite();
@@ -83,42 +83,36 @@ public class TileInteraction : MonoBehaviour
 
 	private void BootstrapSoilWorld()
 	{
-		if (soilWorld == null || overGrassTilemap == null) return;
-
-		overGrassTilemap.CompressBounds();
-		BoundsInt bounds = overGrassTilemap.cellBounds;
-		for (int x = bounds.xMin; x < bounds.xMax; x++)
-		{
-			for (int y = bounds.yMin; y < bounds.yMax; y++)
-			{
-				Vector3Int cell = new Vector3Int(x, y, 0);
-				TileBase tile = overGrassTilemap.GetTile(cell);
-				if (tile == null) continue;
-
-				bool isSoil = IsSoil(tile);
-				bool isWet = IsWetSoil(tile);
-				if (!isSoil && !isWet) continue;
-
-				soilWorld.RegisterSoil(new GridPos(cell.x, cell.y), isWet);
-			}
-		}
+		if (soilService == null || overGrassTilemap == null) return;
+		soilService.BootstrapFromOverTilemap(overGrassTilemap, t => IsSoil(t) || IsWetSoil(t), IsWetSoil);
 	}
 
 	private void InitializeDropLookup()
 	{
-		dropLookup = new Dictionary<TileBase, TileDropGroup>();
+		var lookup = new Dictionary<TileBase, DropService.DropGroup>();
 		for (int i = 0; i < dropGroups.Count; i++)
 		{
 			var group = dropGroups[i];
 			if (group == null || group.tiles == null || group.tiles.Count == 0 || group.drops == null || group.drops.Count == 0)
 				continue;
+
+			var drops = new List<DropService.Entry>(group.drops.Count);
+			for (int d = 0; d < group.drops.Count; d++)
+			{
+				var entry = group.drops[d];
+				if (entry == null || entry.itemData == null) continue;
+				drops.Add(new DropService.Entry(entry.itemData, entry.minQuantity, entry.maxQuantity, entry.dropChance));
+			}
+
+			var dropGroup = new DropService.DropGroup(group.tiles, drops, group.requiredToolItem, group.requiredToolKind);
 			for (int t = 0; t < group.tiles.Count; t++)
 			{
 				var tile = group.tiles[t];
 				if (tile == null) continue;
-				dropLookup[tile] = group;
+				lookup[tile] = dropGroup;
 			}
 		}
+		dropService = new DropService(lookup);
 	}
 
 	private void InitializeTargetTilemaps()
@@ -151,7 +145,7 @@ public class TileInteraction : MonoBehaviour
 	{
 		if (playerSprite == null)
 		{
-			var player = sceneContext != null ? sceneContext.Get<TopDownMovement>() : FindObjectOfType<TopDownMovement>();
+			var player = sceneContext != null ? sceneContext.Get<TopDownMovement>() : null;
 			if (player != null)
 			{
 				playerSprite = player.GetComponent<SpriteRenderer>();
@@ -166,14 +160,21 @@ public class TileInteraction : MonoBehaviour
 			sceneContext = FindObjectOfType<SceneContext>();
 		}
 
+		if (sceneContext == null)
+		{
+			Debug.LogError("TileInteraction: Missing SceneContext in scene.", this);
+			enabled = false;
+			return;
+		}
+
 		if (timeManager == null)
 		{
-			timeManager = sceneContext != null ? sceneContext.Get<TimeManager>() : FindObjectOfType<TimeManager>();
+			timeManager = sceneContext.GetRequired<TimeManager>(this, nameof(timeManager));
 		}
 		
 		if (weatherManager == null)
 		{
-			weatherManager = sceneContext != null ? sceneContext.Get<WeatherManager>() : FindObjectOfType<WeatherManager>();
+			weatherManager = sceneContext.GetRequired<WeatherManager>(this, nameof(weatherManager));
 		}
 		
 		// S'abonner aux changements de saison et de jour
@@ -247,11 +248,11 @@ public class TileInteraction : MonoBehaviour
 		if (overGrassTilemap == null || timeManager == null) return;
 		
 		int currentDay = timeManager.GetCurrentDay();
-		farmingWorld?.WaterAllCrops(currentDay);
+		cropService?.WaterAllCrops(currentDay);
 
-		if (soilWorld != null)
+		if (soilService != null)
 		{
-			var soils = soilWorld.SnapshotSoils();
+			var soils = soilService.SnapshotSoils();
 			for (int i = 0; i < soils.Count; i++)
 			{
 				var p = soils[i];
@@ -260,7 +261,7 @@ public class TileInteraction : MonoBehaviour
 				if (!IsSoil(tile)) continue;
 
 				overGrassTilemap.SetTile(cell, wetSoilTile);
-				soilWorld.MarkWet(p);
+				soilService.MarkWet(p);
 
 				if (plantedCrops.TryGetValue(cell, out var crop) && crop != null)
 				{
@@ -299,9 +300,9 @@ public class TileInteraction : MonoBehaviour
 	{
 		if (overGrassTilemap == null) return;
 
-		if (soilWorld != null)
+		if (soilService != null)
 		{
-			var wet = soilWorld.SnapshotWetSoils();
+			var wet = soilService.SnapshotWetSoils();
 			for (int i = 0; i < wet.Count; i++)
 			{
 				var p = wet[i];
@@ -310,7 +311,7 @@ public class TileInteraction : MonoBehaviour
 				if (!IsWetSoil(tile)) continue;
 
 				overGrassTilemap.SetTile(cell, soilTile);
-				soilWorld.MarkDry(p);
+				soilService.MarkDry(p);
 			}
 			return;
 		}
@@ -328,7 +329,7 @@ public class TileInteraction : MonoBehaviour
 				if (IsWetSoil(tile))
 				{
 					overGrassTilemap.SetTile(cell, soilTile);
-					soilWorld?.RegisterSoil(new GridPos(cell.x, cell.y), isWet: false);
+					soilService?.RegisterSoil(new GridPos(cell.x, cell.y), isWet: false);
 				}
 			}
 		}
@@ -378,11 +379,10 @@ public class TileInteraction : MonoBehaviour
 			Vector3Int cell = tm.WorldToCell(world);
 			TileBase clickedTile = tm.GetTile(cell);
 			if (clickedTile == null) continue;
-			if (!dropLookup.ContainsKey(clickedTile)) continue;
+			if (dropService == null || !dropService.TryGetGroup(clickedTile, out var group)) continue;
 
 			// Vérifier le bon outil selon le groupe ciblé
-			var group = dropLookup[clickedTile];
-			if (!IsToolSelected(group)) 
+			if (!IsToolSelected(group.RequiredToolItem, group.RequiredToolKind)) 
 			{
 				return;
 			}
@@ -424,17 +424,17 @@ public class TileInteraction : MonoBehaviour
 
 	private void TickFarmingWorld(int currentDay)
 	{
-		if (farmingWorld == null || timeManager == null) return;
-		if (farmingWorld.Crops.Count == 0) return;
+		if (cropService == null || timeManager == null) return;
+		if (cropService.Crops.Count == 0) return;
 
 		int currentSeasonId = timeManager.GetCurrentSeasonId();
-		var updates = farmingWorld.TickDay(currentDay, currentSeasonId);
+		var updates = cropService.TickDay(currentDay, currentSeasonId);
 		for (int i = 0; i < updates.Count; i++)
 		{
 			var u = updates[i];
 			var cell = new Vector3Int(u.Pos.X, u.Pos.Y, 0);
 			if (!plantedCrops.TryGetValue(cell, out var crop) || crop == null) continue;
-			if (!farmingWorld.TryGetCrop(u.Pos, out var state) || state == null) continue;
+			if (!cropService.TryGetCrop(u.Pos, out var state) || state == null) continue;
 
 			crop.currentStage = state.CurrentStage;
 			crop.isWithered = state.IsWithered;
@@ -762,7 +762,7 @@ public class TileInteraction : MonoBehaviour
 					{
 						// Changer la tile de soil en soil mouillé
 						overGrassTilemap.SetTile(cell, wetSoilTile);
-						soilWorld?.MarkWet(new GridPos(cell.x, cell.y));
+						soilService?.MarkWet(new GridPos(cell.x, cell.y));
 						wateringCanInstance.UseWater();
 						
 						if (plantedCrops.ContainsKey(cell))
@@ -824,7 +824,7 @@ public class TileInteraction : MonoBehaviour
 				if (IsGrass(terrainTile) && dirtAtCell == null)
 				{
 					overGrassTilemap.SetTile(cell, dirtTile);
-					soilWorld?.Unregister(new GridPos(cell.x, cell.y));
+					soilService?.Unregister(new GridPos(cell.x, cell.y));
 					// Supprimer aussi la tile de foliage au même endroit si elle existe
 					RemoveFoliageTileAtCell(cell);
 					changed = true;
@@ -833,13 +833,13 @@ public class TileInteraction : MonoBehaviour
 				{
 					// Si soil ou wet soil, on remet herbe
 					overGrassTilemap.SetTile(cell, null);
-					soilWorld?.Unregister(new GridPos(cell.x, cell.y));
+					soilService?.Unregister(new GridPos(cell.x, cell.y));
 					changed = true;
 				}
 				else if (IsDirt(dirtAtCell))
 				{
 					overGrassTilemap.SetTile(cell, null);
-					soilWorld?.Unregister(new GridPos(cell.x, cell.y));
+					soilService?.Unregister(new GridPos(cell.x, cell.y));
 					changed = true;
 				}
 				break;
@@ -905,7 +905,7 @@ public class TileInteraction : MonoBehaviour
 
 		// Supprimer la culture du dictionnaire
 		plantedCrops.Remove(cell);
-		farmingWorld?.Remove(new GridPos(cell.x, cell.y));
+		cropService?.Remove(new GridPos(cell.x, cell.y));
 	}
 
 	private bool TryPlantSeed(Vector3 world, SeedData seedData)
@@ -951,7 +951,7 @@ public class TileInteraction : MonoBehaviour
 
 				// Enregistrer la culture
 				plantedCrops[cell] = crop;
-				farmingWorld?.Plant(
+				cropService?.Plant(
 					new GridPos(cell.x, cell.y),
 					new CropBlueprint(
 						growthStagesCount: crop.seedInstance.growthSprites != null ? crop.seedInstance.growthSprites.Length : 0,
@@ -1039,7 +1039,7 @@ public class TileInteraction : MonoBehaviour
 	}
 
 
-	private bool IsToolSelected(TileDropGroup group)
+	private bool IsToolSelected(ItemData requiredToolItem, ToolKind requiredToolKind)
 	{
 		if (playerInventory == null || inventoryUI == null)
 			return false;
@@ -1050,8 +1050,8 @@ public class TileInteraction : MonoBehaviour
 			return false;
 
 		ItemData data = stack.itemData;
-		bool hasSpecificItem = group != null && group.requiredToolItem != null;
-		bool hasKind = group != null && group.requiredToolKind != ToolKind.None;
+		bool hasSpecificItem = requiredToolItem != null;
+		bool hasKind = requiredToolKind != ToolKind.None;
 		
 		// Vérifier si l'item sélectionné est un outil
 		bool isTool = IsTool(data);
@@ -1063,16 +1063,16 @@ public class TileInteraction : MonoBehaviour
 			return isTool;
 
 		// 1) Comparaison stricte par référence d'ItemData
-		if (hasSpecificItem && data == group.requiredToolItem)
+		if (hasSpecificItem && data == requiredToolItem)
 			return true;
 
 		// 2) Si kind demandé, on compare via le type d'outil
-		if (hasKind && GetToolKindFromItem(data) == group.requiredToolKind)
+		if (hasKind && GetToolKindFromItem(data) == requiredToolKind)
 			return true;
 
 		// 3) Fallback: si un item précis est fourni, accepter toute variante du même type d'outil
-		if (hasSpecificItem && IsTool(group.requiredToolItem))
-			return GetToolKindFromItem(data) == GetToolKindFromItem(group.requiredToolItem);
+		if (hasSpecificItem && IsTool(requiredToolItem))
+			return GetToolKindFromItem(data) == GetToolKindFromItem(requiredToolItem);
 
 		return false;
 	}
@@ -1116,22 +1116,7 @@ public class TileInteraction : MonoBehaviour
 
 	private void DropConfiguredItemsForTile(TileBase tileType, Vector3 worldPosition)
 	{
-		if (tileType == null || dropLookup == null) return;
-		if (!dropLookup.TryGetValue(tileType, out var group) || group.drops == null || group.drops.Count == 0) return;
-
-		for (int i = 0; i < group.drops.Count; i++)
-		{
-			var entry = group.drops[i];
-			if (entry == null || entry.itemData == null) continue;
-			if (entry.dropChance < 1f && UnityEngine.Random.value > Mathf.Clamp01(entry.dropChance)) continue;
-			int minQ = Mathf.Max(0, entry.minQuantity);
-			int maxQ = Mathf.Max(minQ, entry.maxQuantity);
-			int count = UnityEngine.Random.Range(minQ, maxQ + 1);
-			for (int k = 0; k < count; k++)
-			{
-				SpawnDrop(entry.itemData, worldPosition);
-			}
-		}
+		dropService?.SpawnConfiguredDropsForTile(tileType, worldPosition, SpawnDrop);
 	}
 
 	private void SpawnDrop(ItemData itemData, Vector3 worldPosition)

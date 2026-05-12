@@ -13,6 +13,9 @@ public class InventoryManager : MonoBehaviour
     [SerializeField] private PlayerInput playerInput;
     [SerializeField] private InventoryUI inventoryUI;
     [SerializeField] private SceneContext sceneContext;
+
+    [Header("Input")]
+    [SerializeField] private string hotbarScrollActionName = "ScrollWheel";
     
     [Header("Hotbar Settings")]
     [SerializeField] private int currentHotbarSlot = 0;
@@ -37,6 +40,8 @@ public class InventoryManager : MonoBehaviour
     // SÃ©lecteurs
     private GameObject hotbarSelectorInstance;
     private GameObject slotSelectorInstance;
+
+    private InputAction hotbarScrollAction;
     
     // Ã‰vÃ©nements
     public System.Action<int> OnHotbarSlotChanged;
@@ -55,6 +60,7 @@ public class InventoryManager : MonoBehaviour
     private void Start()
     {
         SetupInputEvents();
+        BindHotbarScrollAction();
         InitializeSlotManager();
         // Initialiser les sÃ©lecteurs aprÃ¨s la crÃ©ation des slots
         StartCoroutine(InitializeSelectorsAfterSlots());
@@ -69,7 +75,12 @@ public class InventoryManager : MonoBehaviour
     
     private void Update()
     {
-        HandleHotbarScroll();
+        // Hotbar scroll handled via Input System callback.
+    }
+
+    private void OnDestroy()
+    {
+        UnbindHotbarScrollAction();
     }
     private void SetupInputEvents()
     {
@@ -97,31 +108,59 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    private void HandleHotbarScroll()
+    private void BindHotbarScrollAction()
+    {
+        if (playerInput == null || playerInput.actions == null) return;
+
+        hotbarScrollAction = playerInput.actions.FindAction(hotbarScrollActionName, throwIfNotFound: false);
+        if (hotbarScrollAction == null)
+        {
+            Debug.LogError($"InventoryManager: Missing InputAction '{hotbarScrollActionName}'.", this);
+            return;
+        }
+
+        hotbarScrollAction.performed += OnHotbarScrollPerformed;
+    }
+
+    private void UnbindHotbarScrollAction()
+    {
+        if (hotbarScrollAction == null) return;
+        hotbarScrollAction.performed -= OnHotbarScrollPerformed;
+        hotbarScrollAction = null;
+    }
+
+    private void OnHotbarScrollPerformed(InputAction.CallbackContext ctx)
     {
         if (playerInput == null || playerInventory == null) return;
-        
+
         // Ne pas permettre le scroll de hotbar en mode UI
-        if (playerInput.currentActionMap.name == "UI") return;
-        
-        float scrollInput = Input.GetAxis("Mouse ScrollWheel");
-        
-        if (scrollInput != 0f)
+        if (playerInput.currentActionMap != null && playerInput.currentActionMap.name == "UI") return;
+
+        float scrollInput = 0f;
+        if (ctx.valueType == typeof(float))
         {
-            if (scrollInput < 0)
-            {
-                currentHotbarSlot = (currentHotbarSlot + 1) % playerInventory.maxHotbarSlots;
-            }
-            else if (scrollInput > 0)
-            {
-                currentHotbarSlot = (currentHotbarSlot - 1 + playerInventory.maxHotbarSlots) % playerInventory.maxHotbarSlots;
-            }
-            
-            OnHotbarSlotChanged?.Invoke(currentHotbarSlot);
-            UpdateHotbarSelectorPosition();
+            scrollInput = ctx.ReadValue<float>();
         }
+        else if (ctx.valueType == typeof(Vector2))
+        {
+            scrollInput = ctx.ReadValue<Vector2>().y;
+        }
+
+        if (scrollInput == 0f) return;
+
+        if (scrollInput < 0f)
+        {
+            currentHotbarSlot = (currentHotbarSlot + 1) % playerInventory.maxHotbarSlots;
+        }
+        else
+        {
+            currentHotbarSlot = (currentHotbarSlot - 1 + playerInventory.maxHotbarSlots) % playerInventory.maxHotbarSlots;
+        }
+
+        OnHotbarSlotChanged?.Invoke(currentHotbarSlot);
+        UpdateHotbarSelectorPosition();
     }
-    
+
     private void SelectHotbarSlot(int slotIndex)
     {
         if (slotIndex >= 0 && slotIndex < playerInventory.maxHotbarSlots)
@@ -197,7 +236,7 @@ public class InventoryManager : MonoBehaviour
 
         if (playerInventory == null)
         {
-            playerInventory = sceneContext != null ? sceneContext.Get<Inventory>() : FindObjectOfType<Inventory>();
+            playerInventory = sceneContext != null ? sceneContext.GetRequired<Inventory>(this, nameof(playerInventory)) : null;
             if (playerInventory == null)
             {
                 Debug.LogError("playerInventory is not assigned and could not be found automatically in InventoryManager!", this);
@@ -206,7 +245,7 @@ public class InventoryManager : MonoBehaviour
         
         if (playerInput == null)
         {
-            playerInput = sceneContext != null ? sceneContext.PlayerInput : FindObjectOfType<PlayerInput>();
+            playerInput = sceneContext != null ? sceneContext.PlayerInput : null;
             if (playerInput == null)
             {
                 Debug.LogError("playerInput is not assigned and could not be found automatically in InventoryManager!", this);
@@ -215,7 +254,7 @@ public class InventoryManager : MonoBehaviour
         
         if (inventoryUI == null)
         {
-            inventoryUI = sceneContext != null ? sceneContext.Get<InventoryUI>() : FindObjectOfType<InventoryUI>();
+            inventoryUI = sceneContext != null ? sceneContext.GetRequired<InventoryUI>(this, nameof(inventoryUI)) : null;
             if (inventoryUI == null)
             {
                 Debug.LogError("inventoryUI is not assigned and could not be found automatically in InventoryManager!", this);
@@ -234,7 +273,7 @@ public class InventoryManager : MonoBehaviour
         if (uiParent == null)
         {
             // Essayer de trouver un Canvas dans la scÃ¨ne
-            Canvas canvas = sceneContext != null ? sceneContext.UiCanvas : FindObjectOfType<Canvas>();
+            Canvas canvas = sceneContext != null ? sceneContext.UiCanvas : null;
             if (canvas != null)
             {
                 uiParent = canvas.transform;

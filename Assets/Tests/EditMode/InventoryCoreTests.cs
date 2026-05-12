@@ -81,5 +81,24 @@ public class InventoryCoreTests
 
         Assert.AreEqual(0, inv.Slots.Count);
     }
-}
 
+    [Test]
+    public void Remove_DecrementsQuantity_WhenQuantityRemains()
+    {
+        var item = new Item("apple", stackable: true);
+        var inv = new InventoryCore<Item, Stack>(
+            hotbarSlots: 1,
+            inventorySlots: 1,
+            getItem: s => s.Item,
+            getQuantity: s => s.Quantity,
+            setQuantity: (s, q) => s.Quantity = q,
+            isStackable: i => i.Stackable,
+            createStack: (i, q) => new Stack(i, q));
+
+        inv.Add(item, 5);
+        inv.Remove(item, 2);
+
+        Assert.AreEqual(1, inv.Slots.Count);
+        Assert.AreEqual(3, inv.GetQuantityTotal(item));
+    }
+}

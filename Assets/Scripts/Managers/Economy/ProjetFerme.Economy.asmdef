@@ -2,8 +2,7 @@
   "name": "ProjetFerme.Economy",
   "rootNamespace": "",
   "references": [
-    "ProjetFerme.Core",
-    "Unity.TextMeshPro"
+    "ProjetFerme.Core"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

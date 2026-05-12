@@ -1,5 +1,4 @@
 using System;
-using TMPro;
 using UnityEngine;
 
 /// <summary>
@@ -13,10 +12,6 @@ public class EconomyManager : MonoBehaviour
     [Header("Configuration")]
     [Tooltip("Or initial du joueur")]
     [SerializeField] private int startingGold = 0;
-
-    [Header("UI (optionnel)")]
-    [Tooltip("Affichage texte de l'or (facultatif)")]
-    [SerializeField] private TextMeshProUGUI goldText;
 
     /// <summary>
     /// Or actuel du joueur
@@ -34,7 +29,7 @@ public class EconomyManager : MonoBehaviour
     {
         wallet = new GoldWallet(startingGold);
         wallet.GoldChanged += OnWalletGoldChanged;
-        UpdateUI(wallet.Gold);
+        OnGoldChanged?.Invoke(wallet.Gold);
     }
 
     private void OnDestroy()
@@ -48,7 +43,6 @@ public class EconomyManager : MonoBehaviour
     private void OnWalletGoldChanged(int gold)
     {
         OnGoldChanged?.Invoke(gold);
-        UpdateUI(gold);
     }
 
     /// <summary>
@@ -83,20 +77,9 @@ public class EconomyManager : MonoBehaviour
         wallet?.Set(amount);
     }
 
-    /// <summary>
-    /// Affecte un label pour afficher l'or (facultatif)
-    /// </summary>
-    public void BindGoldUI(TextMeshProUGUI ui)
+    public void NotifyCurrentGold()
     {
-        goldText = ui;
-        UpdateUI(Gold);
-    }
-
-    private void UpdateUI(int gold)
-    {
-        if (goldText != null)
-        {
-            goldText.text = $"{gold}g";
-        }
+        if (wallet == null) return;
+        OnGoldChanged?.Invoke(wallet.Gold);
     }
 }

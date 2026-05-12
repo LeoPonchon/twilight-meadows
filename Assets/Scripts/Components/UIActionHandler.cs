@@ -24,13 +24,20 @@ public class UIActionHandler : MonoBehaviour
 			sceneContext = FindObjectOfType<SceneContext>();
 		}
 
+		if (sceneContext == null)
+		{
+			Debug.LogError("UIActionHandler: Missing SceneContext in scene.", this);
+			enabled = false;
+			return;
+		}
+
 		if (playerInput == null)
 		{
-			playerInput = sceneContext != null ? sceneContext.PlayerInput : FindObjectOfType<PlayerInput>();
+			playerInput = sceneContext.PlayerInput;
 		}
 		if (inventoryManager == null)
 		{
-			inventoryManager = sceneContext != null ? sceneContext.Get<InventoryManager>() : FindObjectOfType<InventoryManager>();
+			inventoryManager = sceneContext.GetRequired<InventoryManager>(this, nameof(inventoryManager));
 		}
 	}
 

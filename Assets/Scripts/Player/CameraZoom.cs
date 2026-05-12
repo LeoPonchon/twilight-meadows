@@ -26,7 +26,13 @@ public class CameraZoom : MonoBehaviour
         }
         if (playerInput == null)
         {
-            playerInput = sceneContext != null ? sceneContext.PlayerInput : FindObjectOfType<PlayerInput>();
+            if (sceneContext == null)
+            {
+                Debug.LogError("CameraZoom: Missing SceneContext in scene.", this);
+                enabled = false;
+                return;
+            }
+            playerInput = sceneContext.PlayerInput;
         }
         
         // Initialiser le niveau de zoom actuel

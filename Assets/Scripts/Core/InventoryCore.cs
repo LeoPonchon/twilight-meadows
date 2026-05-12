@@ -100,24 +100,24 @@ public sealed class InventoryCore<TItem, TStack>
     {
         if (item == null || quantity <= 0) return;
 
+        int slotIndex = -1;
+        TStack foundStack = null;
         foreach (var kvp in slots)
         {
             var stack = kvp.Value;
             if (!comparer.Equals(getItem(stack), item)) continue;
-
-            int newQty = getQuantity(stack) - quantity;
-            if (newQty <= 0)
-            {
-                slots.Remove(kvp.Key);
-            }
-            else
-            {
-                setQuantity(stack, newQty);
-            }
-
-            Changed?.Invoke();
-            return;
+            slotIndex = kvp.Key;
+            foundStack = stack;
+            break;
         }
+
+        if (slotIndex < 0) return;
+
+        int newQty = getQuantity(foundStack) - quantity;
+        if (newQty <= 0) slots.Remove(slotIndex);
+        else setQuantity(foundStack, newQty);
+
+        Changed?.Invoke();
     }
 
     public void RemoveFromSlot(int slotIndex, int quantity)
@@ -183,4 +183,3 @@ public sealed class InventoryCore<TItem, TStack>
         }
     }
 }
-

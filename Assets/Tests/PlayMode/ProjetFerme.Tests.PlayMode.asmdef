@@ -1,0 +1,22 @@
+{
+  "name": "ProjetFerme.Tests.PlayMode",
+  "rootNamespace": "",
+  "references": [
+    "ProjetFerme.Scene",
+    "ProjetFerme.Environment",
+    "ProjetFerme.Inventory",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

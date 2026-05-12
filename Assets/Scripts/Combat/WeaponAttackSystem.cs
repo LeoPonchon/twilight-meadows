@@ -31,11 +31,18 @@ public class WeaponAttackSystem : MonoBehaviour
         if (sceneContext == null)
             sceneContext = FindObjectOfType<SceneContext>();
         
+        if (sceneContext == null)
+        {
+            Debug.LogError("WeaponAttackSystem: Missing SceneContext in scene.", this);
+            enabled = false;
+            return;
+        }
+        
         // Trouver automatiquement les références si elles ne sont pas assignées
         if (playerInventory == null)
-            playerInventory = sceneContext != null ? sceneContext.Get<Inventory>() : FindObjectOfType<Inventory>();
+            playerInventory = sceneContext.GetRequired<Inventory>(this, nameof(playerInventory));
         if (inventoryUI == null)
-            inventoryUI = sceneContext != null ? sceneContext.Get<InventoryUI>() : FindObjectOfType<InventoryUI>();
+            inventoryUI = sceneContext.GetRequired<InventoryUI>(this, nameof(inventoryUI));
         if (playerTransform == null)
             playerTransform = transform;
     }

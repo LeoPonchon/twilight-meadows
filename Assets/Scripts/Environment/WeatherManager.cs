@@ -42,10 +42,16 @@ public class WeatherManager : MonoBehaviour
         {
             sceneContext = FindObjectOfType<SceneContext>();
         }
+        if (sceneContext == null)
+        {
+            Debug.LogError("WeatherManager: Missing SceneContext in scene.", this);
+            enabled = false;
+            return;
+        }
 
         if (timeManager == null)
         {
-            timeManager = sceneContext != null ? sceneContext.Get<TimeManager>() : FindObjectOfType<TimeManager>();
+            timeManager = sceneContext.GetRequired<TimeManager>(this, nameof(timeManager));
         }
 
         if (timeManager != null)

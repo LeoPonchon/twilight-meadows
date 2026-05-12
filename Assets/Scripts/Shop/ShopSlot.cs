@@ -46,12 +46,18 @@ public class ShopSlot : MonoBehaviour
     {
         if (sceneContext == null)
             sceneContext = FindObjectOfType<SceneContext>();
+        if (sceneContext == null)
+        {
+            Debug.LogError("ShopSlot: Missing SceneContext in scene.", this);
+            enabled = false;
+            return;
+        }
         // Trouver automatiquement les références si elles ne sont pas assignées
         if (playerInventory == null)
-            playerInventory = sceneContext != null ? sceneContext.Get<Inventory>() : FindObjectOfType<Inventory>();
+            playerInventory = sceneContext.GetRequired<Inventory>(this, nameof(playerInventory));
 
         if (economyManager == null)
-            economyManager = sceneContext != null ? sceneContext.Get<EconomyManager>() : FindObjectOfType<EconomyManager>();
+            economyManager = sceneContext.GetRequired<EconomyManager>(this, nameof(economyManager));
             
             
         // Trouver automatiquement les boutons s'ils ne sont pas assignés
@@ -278,14 +284,15 @@ public class ShopSlot : MonoBehaviour
     
     private void UpdateButtonStates()
     {
-        bool canBuy = itemData != null && 
-                     (stockQuantity == -1 || currentStock > 0) && 
-                     economyManager != null && 
-                     economyManager.CanSpend(buyPrice);
+        bool hasStock = stockQuantity == -1 || currentStock > 0;
+        bool canAdd = playerInventory != null && itemData != null && playerInventory.CanAddItem(itemData, 1);
+        bool canBuy = itemData != null &&
+                      economyManager != null &&
+                      ShopRules.CanBuy(economyManager.Gold, buyPrice, hasStock, canAdd);
                      
-        bool canSell = itemData != null && 
-                      playerInventory != null && 
-                      playerInventory.HasItem(itemData);
+        bool canSell = itemData != null &&
+                       playerInventory != null &&
+                       ShopRules.CanSell(playerInventory.HasItem(itemData));
         
         if (buyButton != null)
         {

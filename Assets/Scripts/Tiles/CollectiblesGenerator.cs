@@ -61,7 +61,13 @@ public class CollectiblesGenerator : MonoBehaviour
 			{
 				sceneContext = FindObjectOfType<SceneContext>();
 			}
-			timeManager = sceneContext != null ? sceneContext.Get<TimeManager>() : FindObjectOfType<TimeManager>();
+			if (sceneContext == null)
+			{
+				Debug.LogError("CollectiblesGenerator: Missing SceneContext in scene.", this);
+				enabled = false;
+				return;
+			}
+			timeManager = sceneContext.GetRequired<TimeManager>(this, nameof(timeManager));
 		}
 
 		if (randomSeed == 0)

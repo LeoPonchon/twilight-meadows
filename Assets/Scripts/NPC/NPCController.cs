@@ -29,7 +29,15 @@ public class NPCController : MonoBehaviour, IDialogueUi
             sceneContext = FindObjectOfType<SceneContext>();
 
         if (playerInput == null)
-            playerInput = sceneContext != null ? sceneContext.PlayerInput : FindObjectOfType<PlayerInput>();
+        {
+            if (sceneContext == null)
+            {
+                Debug.LogError("NPCController: Missing SceneContext in scene.", this);
+                enabled = false;
+                return;
+            }
+            playerInput = sceneContext.PlayerInput;
+        }
         
         if (npcData == null)
         {

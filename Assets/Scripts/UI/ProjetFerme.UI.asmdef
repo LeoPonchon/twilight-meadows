@@ -2,7 +2,9 @@
   "name": "ProjetFerme.UI",
   "rootNamespace": "",
   "references": [
-    "ProjetFerme.Scene"
+    "ProjetFerme.Scene",
+    "ProjetFerme.Economy",
+    "Unity.TextMeshPro"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
@@ -14,4 +16,3 @@
   "versionDefines": [],
   "noEngineReferences": false
 }
-

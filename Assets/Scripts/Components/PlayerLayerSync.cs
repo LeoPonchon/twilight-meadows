@@ -7,6 +7,7 @@ public class PlayerLayerSync : MonoBehaviour
     private SortingGroup playerSortingGroup;
 
     [SerializeField] private TopDownMovement player;
+    [SerializeField] private SceneContext sceneContext;
 
     private void Awake()
     {
@@ -14,7 +15,11 @@ public class PlayerLayerSync : MonoBehaviour
 
         if (player == null)
         {
-            player = FindObjectOfType<TopDownMovement>();
+            if (sceneContext == null)
+            {
+                sceneContext = FindObjectOfType<SceneContext>();
+            }
+            player = sceneContext != null ? sceneContext.GetRequired<TopDownMovement>(this, nameof(player)) : null;
         }
         if (player != null)
         {
