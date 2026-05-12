@@ -7,252 +7,174 @@ using UnityEditor;
 public class PlayerSpriteManager : MonoBehaviour
 {
     [Header("Customization Slots")]
-    [SerializeField] private BackHairStyle backHairStyle;
-    [SerializeField] private Color backHairColor = Color.white;
-    [SerializeField] private HairStyle hairStyle;
-    [SerializeField] private Color hairColor = Color.white;
-    [SerializeField] private Eyes eyes;
-    [SerializeField] private Color eyesColor = Color.white;
-    [SerializeField] private EyesOutline eyesOutline;
-    [SerializeField] private Color eyesOutlineColor = Color.white;
-    [SerializeField] private Accessory accessory;
-    [SerializeField] private Color accessoryColor = Color.white;
-    [SerializeField] private Shirt shirt;
-    [SerializeField] private Color shirtColor = Color.white;
-    [SerializeField] private Pants pants;
-    [SerializeField] private Color pantsColor = Color.white;
-    [SerializeField] private Gauntlets gauntlets;
-    [SerializeField] private Color gauntletsColor = Color.white;
-    [SerializeField] private Shoes shoes;
-    [SerializeField] private Color shoesColor = Color.white;
+    [SerializeField] BackHairStyle backHairStyle;      [SerializeField] Color backHairColor = Color.white;
+    [SerializeField] HairStyle hairStyle;              [SerializeField] Color hairColor = Color.white;
+    [SerializeField] Eyes eyes;                        [SerializeField] Color eyesColor = Color.white;
+    [SerializeField] EyesOutline eyesOutline;          [SerializeField] Color eyesOutlineColor = Color.white;
+    [SerializeField] Accessory accessory;              [SerializeField] Color accessoryColor = Color.white;
+    [SerializeField] Shirt shirt;                      [SerializeField] Color shirtColor = Color.white;
+    [SerializeField] Pants pants;                      [SerializeField] Color pantsColor = Color.white;
+    [SerializeField] Gauntlets gauntlets;              [SerializeField] Color gauntletsColor = Color.white;
+    [SerializeField] Shoes shoes;                      [SerializeField] Color shoesColor = Color.white;
 
-    private SpriteRenderer[] customizationRenderers = new SpriteRenderer[9];
-    private SpriteRenderer playerSprite;
-    private bool rebuildQueued;
+    SpriteRenderer[] renderers = new SpriteRenderer[9];
+    SpriteRenderer playerSprite;
+    bool rebuildQueued;
 
-    private static readonly string[] SlotNames =
+    static readonly string[] Names =
     {
-        "Back Hair",
-        "Front Hair",
-        "Eyes",
-        "Eyes Outline",
-        "Accessory",
-        "Shirt",
-        "Pants",
-        "Gauntlets",
-        "Shoes",
+        "Back Hair", "Front Hair", "Eyes", "Eyes Outline", "Accessory",
+        "Shirt", "Pants", "Gauntlets", "Shoes"
     };
 
-    private void Awake()
+    CustomizationObject[] Slots => new CustomizationObject[]
+    {
+        backHairStyle, hairStyle, eyes, eyesOutline, accessory, shirt, pants, gauntlets, shoes
+    };
+
+    Color[] Colors => new Color[]
+    {
+        backHairColor, hairColor, eyesColor, eyesOutlineColor, accessoryColor,
+        shirtColor, pantsColor, gauntletsColor, shoesColor
+    };
+
+    void Awake()
     {
         playerSprite = GetComponent<SpriteRenderer>();
-
-        if (Application.isPlaying)
-        {
-            CreateCustomizationObjects();
-        }
+        if (Application.isPlaying) CreateObjects();
     }
 
-    private void OnEnable()
+    void OnEnable()
     {
-        if (playerSprite == null) playerSprite = GetComponent<SpriteRenderer>();
-
+        Init();
         if (!Application.isPlaying)
         {
-            // En mode éditeur, Unity peut appeler OnEnable/OnValidate durant des phases où la modification
-            // de hiérarchie est interdite. On ne crée/détruit jamais ici.
-            if (!HasAllRenderers()) RequestRebuildInEditor();
-            ApplyCustomizationIfReady();
+            if (!Ready()) RequestRebuild();
+            Apply();
         }
     }
 
-    private void Start()
-    {
-        UpdateCustomization();
-    }
+    void Start() => UpdateCustomization();
 
-    private void OnValidate()
+    void OnValidate()
     {
         if (Application.isPlaying) return;
-
-        if (playerSprite == null) playerSprite = GetComponent<SpriteRenderer>();
-
-        // OnValidate ne doit pas modifier la hiérarchie.
-        if (!HasAllRenderers())
-        {
-            RequestRebuildInEditor();
-            return;
-        }
-
-        ApplyCustomizationIfReady();
+        Init();
+        if (!Ready()) RequestRebuild();
+        else Apply();
     }
 
-    private void Update()
+    void Update()
     {
-        if (playerSprite == null) playerSprite = GetComponent<SpriteRenderer>();
+        Init();
 
         if (!Application.isPlaying)
         {
-            // Preview éditeur sans reconstruction automatique.
-            ApplyCustomizationIfReady();
+            Apply();
             return;
         }
 
-        if (playerSprite?.sprite == null) return;
-        if (!EnsureRenderersReady()) return;
+        if (playerSprite?.sprite == null || !EnsureReady()) return;
+        Apply();
+    }
 
-        ApplyCustomizationIfReady();
+    void Init()
+    {
+        if (playerSprite == null) playerSprite = GetComponent<SpriteRenderer>();
+        if (renderers == null || renderers.Length != 9) renderers = new SpriteRenderer[9];
     }
 
     [ContextMenu("Rebuild Customization Objects")]
-    private void RebuildCustomizationObjects()
+    void RebuildCustomizationObjects()
     {
-        if (Application.isPlaying)
-        {
-            CreateCustomizationObjects();
-            return;
-        }
-
-        RequestRebuildInEditor(force: true);
+        if (Application.isPlaying) CreateObjects();
+        else RequestRebuild(true);
     }
 
-    private void CreateCustomizationObjects()
+    void CreateObjects()
     {
-        // Nettoyer les anciens objets
-        foreach (SpriteRenderer renderer in customizationRenderers)
+        Init();
+
+        foreach (var r in renderers)
+            if (r) DestroyObject(r.gameObject);
+
+        foreach (var n in Names)
         {
-            if (renderer == null) continue;
-            if (Application.isPlaying) Destroy(renderer.gameObject);
-            else DestroyImmediate(renderer.gameObject);
+            var child = transform.Find(n);
+            if (child) DestroyObject(child.gameObject);
         }
 
-        // Supprimer tous les objets fils existants pour éviter les duplicatas
-        for (int i = 0; i < SlotNames.Length; i++)
+        for (int i = 0; i < renderers.Length; i++)
         {
-            Transform existing = transform.Find(SlotNames[i]);
-            if (existing == null) continue;
-
-            if (Application.isPlaying) Destroy(existing.gameObject);
-            else DestroyImmediate(existing.gameObject);
-        }
-
-        if (customizationRenderers == null || customizationRenderers.Length != 9)
-        {
-            customizationRenderers = new SpriteRenderer[9];
-        }
-
-        // Créer les GameObjects pour chaque slot
-        for (int i = 0; i < customizationRenderers.Length; i++)
-        {
-            GameObject obj = new GameObject(SlotNames[i]);
+            var obj = new GameObject(Names[i]);
             obj.transform.SetParent(transform);
             obj.transform.localPosition = new Vector3(0, 0.8f, 0);
-            customizationRenderers[i] = obj.AddComponent<SpriteRenderer>();
+            renderers[i] = obj.AddComponent<SpriteRenderer>();
         }
 
-        ApplyCustomizationIfReady();
+        Apply();
     }
 
-    private bool EnsureRenderersReady()
+    void DestroyObject(GameObject obj)
     {
-        if (customizationRenderers == null || customizationRenderers.Length != 9)
-        {
-            customizationRenderers = new SpriteRenderer[9];
-        }
-
-        if (!Application.isPlaying)
-        {
-            return HasAllRenderers();
-        }
-
-        for (int i = 0; i < customizationRenderers.Length; i++)
-        {
-            if (customizationRenderers[i] != null) continue;
-            CreateCustomizationObjects();
-            break;
-        }
-
-        return HasAllRenderers();
+        if (Application.isPlaying) Destroy(obj);
+        else DestroyImmediate(obj);
     }
 
-    private bool HasAllRenderers()
+    bool EnsureReady()
     {
-        if (customizationRenderers == null || customizationRenderers.Length != 9) return false;
+        Init();
 
-        for (int i = 0; i < customizationRenderers.Length; i++)
+        if (!Application.isPlaying) return Ready();
+
+        if (!Ready()) CreateObjects();
+        return Ready();
+    }
+
+    bool Ready()
+    {
+        if (renderers == null || renderers.Length != 9) return false;
+
+        foreach (var r in renderers)
+            if (r == null) return false;
+
+        return true;
+    }
+
+    bool Apply()
+    {
+        if (playerSprite?.sprite == null || !Ready()) return false;
+
+        int frame = ExtractFrameNumber(playerSprite.sprite.name);
+        bool lookingUp = frame >= 4 && frame <= 6;
+        var slots = Slots;
+        var colors = Colors;
+
+        for (int i = 0; i < renderers.Length; i++)
         {
-            if (customizationRenderers[i] == null) return false;
+            var r = renderers[i];
+            var slot = slots[i];
+
+            if (slot?.sprites != null && frame < slot.sprites.Length)
+                r.sprite = slot.sprites[frame];
+
+            r.color = slot?.colorable == true ? colors[i] : slot?.defaultTint ?? Color.white;
+            r.sortingLayerID = playerSprite.sortingLayerID;
+            r.sortingOrder = GetSortingOrder(i, lookingUp);
         }
 
         return true;
     }
 
-    private bool ApplyCustomizationIfReady()
+    int GetSortingOrder(int i, bool lookingUp)
     {
-        if (playerSprite?.sprite == null) return false;
-        if (!HasAllRenderers()) return false;
-
-        int frameNumber = ExtractFrameNumber(playerSprite.sprite.name);
-        bool isLookingUp = frameNumber >= 4 && frameNumber <= 6;
-
-        CustomizationObject[] slots = { backHairStyle, hairStyle, eyes, eyesOutline, accessory, shirt, pants, gauntlets, shoes };
-        Color[] colors = { backHairColor, hairColor, eyesColor, eyesOutlineColor, accessoryColor, shirtColor, pantsColor, gauntletsColor, shoesColor };
-
-        for (int i = 0; i < slots.Length; i++)
-        {
-            SpriteRenderer renderer = customizationRenderers[i];
-            if (renderer == null) continue;
-
-            if (slots[i]?.sprites != null && frameNumber < slots[i].sprites.Length)
-            {
-                renderer.sprite = slots[i].sprites[frameNumber];
-            }
-
-            if (slots[i]?.colorable == true)
-            {
-                renderer.color = colors[i];
-            }
-            else
-            {
-                renderer.color = slots[i]?.defaultTint ?? Color.white;
-            }
-
-            renderer.sortingLayerID = playerSprite.sortingLayerID;
-
-            int sortingOrder;
-            if (i == 0)
-            {
-                sortingOrder = playerSprite.sortingOrder - 1;
-            }
-            else if (i == 1)
-            {
-                sortingOrder = playerSprite.sortingOrder + 1;
-            }
-            else if (i == 8)
-            {
-                sortingOrder = playerSprite.sortingOrder + 2;
-            }
-            else
-            {
-                sortingOrder = playerSprite.sortingOrder + i;
-            }
-
-            if (isLookingUp && i == 0)
-            {
-                sortingOrder = playerSprite.sortingOrder + 10;
-            }
-            else if (isLookingUp && i == 1)
-            {
-                sortingOrder = playerSprite.sortingOrder + 1;
-            }
-
-            renderer.sortingOrder = sortingOrder;
-        }
-
-        return true;
+        if (i == 0) return lookingUp ? playerSprite.sortingOrder + 10 : playerSprite.sortingOrder - 1;
+        if (i == 1) return playerSprite.sortingOrder + 100;
+        if (i == 8) return playerSprite.sortingOrder + 2;
+        return playerSprite.sortingOrder + i;
     }
 
-    private void RequestRebuildInEditor(bool force = false)
+    void RequestRebuild(bool force = false)
     {
 #if UNITY_EDITOR
         if (!force && rebuildQueued) return;
@@ -262,51 +184,38 @@ public class PlayerSpriteManager : MonoBehaviour
         {
             if (this == null) return;
             rebuildQueued = false;
-            if (Application.isPlaying) return;
-
-            CreateCustomizationObjects();
+            if (!Application.isPlaying) CreateObjects();
         };
 #endif
     }
 
-    private int ExtractFrameNumber(string spriteName)
+    int ExtractFrameNumber(string spriteName)
     {
-        int lastUnderscoreIndex = spriteName.LastIndexOf('_');
-        if (lastUnderscoreIndex != -1 && int.TryParse(spriteName.Substring(lastUnderscoreIndex + 1), out int frameNumber))
-        {
-            return frameNumber;
-        }
-
-        return 0;
+        int index = spriteName.LastIndexOf('_');
+        return index >= 0 && int.TryParse(spriteName[(index + 1)..], out int frame) ? frame : 0;
     }
 
     public void UpdateCustomization()
     {
         if (Application.isPlaying)
         {
-            if (!EnsureRenderersReady()) return;
-            ApplyCustomizationIfReady();
+            if (EnsureReady()) Apply();
             return;
         }
 
-        if (!HasAllRenderers())
-        {
-            RequestRebuildInEditor();
-            return;
-        }
-
-        ApplyCustomizationIfReady();
+        if (!Ready()) RequestRebuild();
+        else Apply();
     }
 
-    public void SetHairStyle(HairStyle style) { hairStyle = style; UpdateCustomization(); }
-    public void SetBackHairStyle(BackHairStyle style) { backHairStyle = style; UpdateCustomization(); }
-    public void SetEyes(Eyes newEyes) { eyes = newEyes; UpdateCustomization(); }
-    public void SetEyesOutline(EyesOutline outline) { eyesOutline = outline; UpdateCustomization(); }
-    public void SetAccessory(Accessory newAccessory) { accessory = newAccessory; UpdateCustomization(); }
-    public void SetShirt(Shirt newShirt) { shirt = newShirt; UpdateCustomization(); }
-    public void SetPants(Pants newPants) { pants = newPants; UpdateCustomization(); }
-    public void SetGauntlets(Gauntlets newGauntlets) { gauntlets = newGauntlets; UpdateCustomization(); }
-    public void SetShoes(Shoes newShoes) { shoes = newShoes; UpdateCustomization(); }
+    public void SetHairStyle(HairStyle v) { hairStyle = v; UpdateCustomization(); }
+    public void SetBackHairStyle(BackHairStyle v) { backHairStyle = v; UpdateCustomization(); }
+    public void SetEyes(Eyes v) { eyes = v; UpdateCustomization(); }
+    public void SetEyesOutline(EyesOutline v) { eyesOutline = v; UpdateCustomization(); }
+    public void SetAccessory(Accessory v) { accessory = v; UpdateCustomization(); }
+    public void SetShirt(Shirt v) { shirt = v; UpdateCustomization(); }
+    public void SetPants(Pants v) { pants = v; UpdateCustomization(); }
+    public void SetGauntlets(Gauntlets v) { gauntlets = v; UpdateCustomization(); }
+    public void SetShoes(Shoes v) { shoes = v; UpdateCustomization(); }
 
     public HairStyle GetHairStyle() => hairStyle;
     public BackHairStyle GetBackHairStyle() => backHairStyle;
@@ -318,15 +227,15 @@ public class PlayerSpriteManager : MonoBehaviour
     public Gauntlets GetGauntlets() => gauntlets;
     public Shoes GetShoes() => shoes;
 
-    public void SetBackHairColor(Color color) { backHairColor = color; UpdateCustomization(); }
-    public void SetHairColor(Color color) { hairColor = color; UpdateCustomization(); }
-    public void SetEyesColor(Color color) { eyesColor = color; UpdateCustomization(); }
-    public void SetEyesOutlineColor(Color color) { eyesOutlineColor = color; UpdateCustomization(); }
-    public void SetAccessoryColor(Color color) { accessoryColor = color; UpdateCustomization(); }
-    public void SetShirtColor(Color color) { shirtColor = color; UpdateCustomization(); }
-    public void SetPantsColor(Color color) { pantsColor = color; UpdateCustomization(); }
-    public void SetGauntletsColor(Color color) { gauntletsColor = color; UpdateCustomization(); }
-    public void SetShoesColor(Color color) { shoesColor = color; UpdateCustomization(); }
+    public void SetBackHairColor(Color v) { backHairColor = v; UpdateCustomization(); }
+    public void SetHairColor(Color v) { hairColor = v; UpdateCustomization(); }
+    public void SetEyesColor(Color v) { eyesColor = v; UpdateCustomization(); }
+    public void SetEyesOutlineColor(Color v) { eyesOutlineColor = v; UpdateCustomization(); }
+    public void SetAccessoryColor(Color v) { accessoryColor = v; UpdateCustomization(); }
+    public void SetShirtColor(Color v) { shirtColor = v; UpdateCustomization(); }
+    public void SetPantsColor(Color v) { pantsColor = v; UpdateCustomization(); }
+    public void SetGauntletsColor(Color v) { gauntletsColor = v; UpdateCustomization(); }
+    public void SetShoesColor(Color v) { shoesColor = v; UpdateCustomization(); }
 
     public Color GetBackHairColor() => backHairColor;
     public Color GetHairColor() => hairColor;
