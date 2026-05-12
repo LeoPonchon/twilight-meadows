@@ -1,0 +1,19 @@
+{
+  "name": "ProjetFerme.Player",
+  "rootNamespace": "",
+  "references": [
+    "ProjetFerme.Scene",
+    "Unity.InputSystem",
+    "ProjetFerme.Data",
+    "Cinemachine"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

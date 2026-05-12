@@ -25,6 +25,8 @@ public class ShopSlot : MonoBehaviour
     
     [Header("Références Système")]
     [SerializeField] private Inventory playerInventory;
+    [SerializeField] private EconomyManager economyManager;
+    [SerializeField] private SceneContext sceneContext;
     
     private int currentStock;
     
@@ -42,9 +44,14 @@ public class ShopSlot : MonoBehaviour
     
     private void InitializeReferences()
     {
+        if (sceneContext == null)
+            sceneContext = FindObjectOfType<SceneContext>();
         // Trouver automatiquement les références si elles ne sont pas assignées
         if (playerInventory == null)
-            playerInventory = FindObjectOfType<Inventory>();
+            playerInventory = sceneContext != null ? sceneContext.Get<Inventory>() : FindObjectOfType<Inventory>();
+
+        if (economyManager == null)
+            economyManager = sceneContext != null ? sceneContext.Get<EconomyManager>() : FindObjectOfType<EconomyManager>();
             
             
         // Trouver automatiquement les boutons s'ils ne sont pas assignés
@@ -100,7 +107,7 @@ public class ShopSlot : MonoBehaviour
             return;
         }
         
-        if (EconomyManager.Instance == null)
+        if (economyManager == null)
         {
             Debug.LogError("ShopSlot: EconomyManager non trouvé");
             return;
@@ -113,7 +120,7 @@ public class ShopSlot : MonoBehaviour
         }
         
         // Vérifier si le joueur a assez d'argent
-        if (!EconomyManager.Instance.CanSpend(buyPrice))
+        if (!economyManager.CanSpend(buyPrice))
         {
             Debug.Log($"Pas assez d'argent pour acheter {itemData.itemName}. Coût: {buyPrice}");
             return;
@@ -145,7 +152,7 @@ public class ShopSlot : MonoBehaviour
             return;
         }
         
-        if (EconomyManager.Instance == null)
+        if (economyManager == null)
         {
             Debug.LogError("ShopSlot: EconomyManager non trouvé");
             return;
@@ -171,7 +178,7 @@ public class ShopSlot : MonoBehaviour
     private void PerformBuy()
     {
         // Retirer l'argent
-        EconomyManager.Instance.Spend(buyPrice);
+        economyManager.Spend(buyPrice);
         
         // Ajouter l'item à l'inventaire
         playerInventory.AddItem(itemData, 1);
@@ -192,7 +199,7 @@ public class ShopSlot : MonoBehaviour
         playerInventory.RemoveItem(itemData, 1);
         
         // Ajouter l'argent
-        EconomyManager.Instance.AddGold(sellPrice);
+        economyManager.AddGold(sellPrice);
         
         UpdateUI();
         Debug.Log($"Vente réussie: {itemData.itemName} pour {sellPrice} pièces");
@@ -273,8 +280,8 @@ public class ShopSlot : MonoBehaviour
     {
         bool canBuy = itemData != null && 
                      (stockQuantity == -1 || currentStock > 0) && 
-                     EconomyManager.Instance != null && 
-                     EconomyManager.Instance.CanSpend(buyPrice);
+                     economyManager != null && 
+                     economyManager.CanSpend(buyPrice);
                      
         bool canSell = itemData != null && 
                       playerInventory != null && 

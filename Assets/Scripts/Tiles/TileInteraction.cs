@@ -14,6 +14,8 @@ public class TileInteraction : MonoBehaviour
 	[SerializeField] private TimeManager timeManager;
 	[SerializeField] private WeatherManager weatherManager;
 	[SerializeField] private GameObject collectiblePrefab; // Prefab pour les objets droppés
+	[SerializeField] private SceneContext sceneContext;
+	[SerializeField] private TilemapRegistry tilemapRegistry;
 
 	[Header("Sol / Autotiling (Grass + Dirt/Farmland)")]
 	[Tooltip("Tilemap Grass utilisée pour identifier les cases cliquées")]
@@ -61,16 +63,45 @@ public class TileInteraction : MonoBehaviour
 	[Header("Configuration des Drops")]
 	[SerializeField] private List<TileDropGroup> dropGroups = new List<TileDropGroup>();
 
+	private FarmingWorld farmingWorld;
+	private SoilWorld soilWorld;
 	private Dictionary<Vector3Int, PlantedCrop> plantedCrops = new Dictionary<Vector3Int, PlantedCrop>();
+	private int lastFarmingTickDay = -1;
 	private Dictionary<TileBase, TileDropGroup> dropLookup;
 	private List<Tilemap> targetTilemaps;
 
 	private void Awake()
 	{
+		farmingWorld = new FarmingWorld();
+		soilWorld = new SoilWorld();
 		InitializeDropLookup();
 		InitializeTargetTilemaps();
 		InitializePlayerSprite();
 		InitializeTimeManager();
+		BootstrapSoilWorld();
+	}
+
+	private void BootstrapSoilWorld()
+	{
+		if (soilWorld == null || overGrassTilemap == null) return;
+
+		overGrassTilemap.CompressBounds();
+		BoundsInt bounds = overGrassTilemap.cellBounds;
+		for (int x = bounds.xMin; x < bounds.xMax; x++)
+		{
+			for (int y = bounds.yMin; y < bounds.yMax; y++)
+			{
+				Vector3Int cell = new Vector3Int(x, y, 0);
+				TileBase tile = overGrassTilemap.GetTile(cell);
+				if (tile == null) continue;
+
+				bool isSoil = IsSoil(tile);
+				bool isWet = IsWetSoil(tile);
+				if (!isSoil && !isWet) continue;
+
+				soilWorld.RegisterSoil(new GridPos(cell.x, cell.y), isWet);
+			}
+		}
 	}
 
 	private void InitializeDropLookup()
@@ -94,6 +125,17 @@ public class TileInteraction : MonoBehaviour
 	{
 		// Collecter les tilemaps cibles sous la racine
 		targetTilemaps = new List<Tilemap>();
+
+		if (tilemapsRoot == null && tilemapRegistry != null)
+		{
+			tilemapsRoot = tilemapRegistry.TilemapsRoot;
+		}
+
+		if (tilemapRegistry != null && tilemapRegistry.Tilemaps != null && tilemapRegistry.Tilemaps.Length > 0)
+		{
+			targetTilemaps.AddRange(tilemapRegistry.Tilemaps);
+			return;
+		}
 		if (tilemapsRoot != null)
 		{
 			tilemapsRoot.GetComponentsInChildren(true, targetTilemaps);
@@ -101,8 +143,7 @@ public class TileInteraction : MonoBehaviour
 		else
 		{
 			// Fallback: toutes les tilemaps de la scène
-			var all = FindObjectsOfType<Tilemap>();
-			targetTilemaps.AddRange(all);
+			Debug.LogError("TileInteraction: tilemapsRoot or TilemapRegistry is required (no more scene-wide search fallback).", this);
 		}
 	}
 
@@ -110,7 +151,7 @@ public class TileInteraction : MonoBehaviour
 	{
 		if (playerSprite == null)
 		{
-			var player = FindObjectOfType<TopDownMovement>();
+			var player = sceneContext != null ? sceneContext.Get<TopDownMovement>() : FindObjectOfType<TopDownMovement>();
 			if (player != null)
 			{
 				playerSprite = player.GetComponent<SpriteRenderer>();
@@ -120,14 +161,19 @@ public class TileInteraction : MonoBehaviour
 
 	private void InitializeTimeManager()
 	{
+		if (sceneContext == null)
+		{
+			sceneContext = FindObjectOfType<SceneContext>();
+		}
+
 		if (timeManager == null)
 		{
-			timeManager = FindObjectOfType<TimeManager>();
+			timeManager = sceneContext != null ? sceneContext.Get<TimeManager>() : FindObjectOfType<TimeManager>();
 		}
 		
 		if (weatherManager == null)
 		{
-			weatherManager = FindObjectOfType<WeatherManager>();
+			weatherManager = sceneContext != null ? sceneContext.Get<WeatherManager>() : FindObjectOfType<WeatherManager>();
 		}
 		
 		// S'abonner aux changements de saison et de jour
@@ -201,6 +247,28 @@ public class TileInteraction : MonoBehaviour
 		if (overGrassTilemap == null || timeManager == null) return;
 		
 		int currentDay = timeManager.GetCurrentDay();
+		farmingWorld?.WaterAllCrops(currentDay);
+
+		if (soilWorld != null)
+		{
+			var soils = soilWorld.SnapshotSoils();
+			for (int i = 0; i < soils.Count; i++)
+			{
+				var p = soils[i];
+				Vector3Int cell = new Vector3Int(p.X, p.Y, 0);
+				TileBase tile = overGrassTilemap.GetTile(cell);
+				if (!IsSoil(tile)) continue;
+
+				overGrassTilemap.SetTile(cell, wetSoilTile);
+				soilWorld.MarkWet(p);
+
+				if (plantedCrops.TryGetValue(cell, out var crop) && crop != null)
+				{
+					crop.lastWateredDay = currentDay;
+				}
+			}
+			return;
+		}
 		
 		// Parcourir toutes les tiles de la tilemap
 		BoundsInt bounds = overGrassTilemap.cellBounds;
@@ -230,6 +298,22 @@ public class TileInteraction : MonoBehaviour
 	private void DryAllWetSoils()
 	{
 		if (overGrassTilemap == null) return;
+
+		if (soilWorld != null)
+		{
+			var wet = soilWorld.SnapshotWetSoils();
+			for (int i = 0; i < wet.Count; i++)
+			{
+				var p = wet[i];
+				Vector3Int cell = new Vector3Int(p.X, p.Y, 0);
+				TileBase tile = overGrassTilemap.GetTile(cell);
+				if (!IsWetSoil(tile)) continue;
+
+				overGrassTilemap.SetTile(cell, soilTile);
+				soilWorld.MarkDry(p);
+			}
+			return;
+		}
 		
 		// Parcourir toutes les tiles de la tilemap
 		BoundsInt bounds = overGrassTilemap.cellBounds;
@@ -244,6 +328,7 @@ public class TileInteraction : MonoBehaviour
 				if (IsWetSoil(tile))
 				{
 					overGrassTilemap.SetTile(cell, soilTile);
+					soilWorld?.RegisterSoil(new GridPos(cell.x, cell.y), isWet: false);
 				}
 			}
 		}
@@ -251,7 +336,15 @@ public class TileInteraction : MonoBehaviour
 
 	private void Update()
 	{
-		UpdateCrops();
+		if (timeManager != null)
+		{
+			int day = timeManager.GetCurrentDay();
+			if (day != lastFarmingTickDay)
+			{
+				lastFarmingTickDay = day;
+				TickFarmingWorld(day);
+			}
+		}
 		HandleMouseInput();
 	}
 
@@ -329,6 +422,30 @@ public class TileInteraction : MonoBehaviour
 		return playerInventory.GetItemInSlot(slot);
 	}
 
+	private void TickFarmingWorld(int currentDay)
+	{
+		if (farmingWorld == null || timeManager == null) return;
+		if (farmingWorld.Crops.Count == 0) return;
+
+		int currentSeasonId = timeManager.GetCurrentSeasonId();
+		var updates = farmingWorld.TickDay(currentDay, currentSeasonId);
+		for (int i = 0; i < updates.Count; i++)
+		{
+			var u = updates[i];
+			var cell = new Vector3Int(u.Pos.X, u.Pos.Y, 0);
+			if (!plantedCrops.TryGetValue(cell, out var crop) || crop == null) continue;
+			if (!farmingWorld.TryGetCrop(u.Pos, out var state) || state == null) continue;
+
+			crop.currentStage = state.CurrentStage;
+			crop.isWithered = state.IsWithered;
+			crop.lastWateredDay = state.LastWateredDay;
+			crop.lastProductionDay = state.LastProductionDay;
+			crop.hasFruits = state.HasFruits;
+
+			UpdateCropSprite(cell, crop);
+		}
+	}
+
 	private void UpdateCrops()
 	{
 		if (plantedCrops == null || plantedCrops.Count == 0)
@@ -365,6 +482,15 @@ public class TileInteraction : MonoBehaviour
 
 	private bool ShouldGrow(PlantedCrop crop)
 	{
+		if (timeManager == null || crop == null || crop.seedInstance == null || crop.seedInstance.growthSprites == null) return false;
+		return FarmingCropLogic.ShouldGrow(
+			crop.isWithered,
+			crop.currentStage,
+			crop.seedInstance.growthSprites.Length,
+			timeManager.GetCurrentDay(),
+			crop.dayPlanted);
+
+		#if false
 		if (crop.isWithered || crop.currentStage >= crop.seedInstance.growthSprites.Length - 1)
 			return false;
 
@@ -378,10 +504,24 @@ public class TileInteraction : MonoBehaviour
 		int requiredDays = crop.currentStage + 1;
 
 		return daysSincePlanted >= requiredDays;
+		#endif
 	}
 
 	private bool ShouldWither(PlantedCrop crop)
 	{
+		if (timeManager == null || crop == null || crop.seedInstance == null || crop.seedInstance.growthSprites == null) return false;
+		int currentSeasonId = timeManager.GetCurrentSeasonId();
+		bool isMature = FarmingCropLogic.IsMature(crop.currentStage, crop.seedInstance.growthSprites.Length);
+		bool isInSeason = (int)crop.seedInstance.growthSeason == currentSeasonId;
+		return FarmingCropLogic.ShouldWither(
+			crop.isWithered,
+			isInSeason,
+			isMature,
+			timeManager.GetCurrentDay(),
+			crop.lastWateredDay,
+			crop.seedInstance.witherTime);
+
+		#if false
 		if (crop.isWithered)
 			return false;
 
@@ -402,16 +542,29 @@ public class TileInteraction : MonoBehaviour
 		// Vérifier si la culture n'a pas été arrosée depuis trop longtemps
 		int daysSinceLastWatered = currentDay - crop.lastWateredDay;
 		return daysSinceLastWatered >= crop.seedInstance.witherTime;
+		#endif
 	}
 
 	private bool IsMature(PlantedCrop crop)
 	{
 		// Une culture est mature quand elle atteint la dernière étape
-		return crop.currentStage >= crop.seedInstance.growthSprites.Length - 1;
+		if (crop == null || crop.seedInstance == null || crop.seedInstance.growthSprites == null) return false;
+		return FarmingCropLogic.IsMature(crop.currentStage, crop.seedInstance.growthSprites.Length);
 	}
 
 	private void UpdatePerennialProduction(Vector3Int cell, PlantedCrop crop)
 	{
+		if (crop == null || crop.seedInstance == null) return;
+		if (FarmingCropLogic.TryUpdatePerennialProduction(
+				timeManager != null ? timeManager.GetCurrentDay() : 0,
+				crop.seedInstance.productionInterval,
+				ref crop.lastProductionDay,
+				ref crop.hasFruits))
+		{
+			UpdateCropSprite(cell, crop);
+		}
+
+		#if false
 		if (timeManager == null) return;
 
 		int currentDay = timeManager.GetCurrentDay();
@@ -433,6 +586,7 @@ public class TileInteraction : MonoBehaviour
 			crop.hasFruits = true;
 			UpdateCropSprite(cell, crop);
 		}
+		#endif
 	}
 
 	private void UpdateCropSprite(Vector3Int cell, PlantedCrop crop)
@@ -608,6 +762,7 @@ public class TileInteraction : MonoBehaviour
 					{
 						// Changer la tile de soil en soil mouillé
 						overGrassTilemap.SetTile(cell, wetSoilTile);
+						soilWorld?.MarkWet(new GridPos(cell.x, cell.y));
 						wateringCanInstance.UseWater();
 						
 						if (plantedCrops.ContainsKey(cell))
@@ -669,6 +824,7 @@ public class TileInteraction : MonoBehaviour
 				if (IsGrass(terrainTile) && dirtAtCell == null)
 				{
 					overGrassTilemap.SetTile(cell, dirtTile);
+					soilWorld?.Unregister(new GridPos(cell.x, cell.y));
 					// Supprimer aussi la tile de foliage au même endroit si elle existe
 					RemoveFoliageTileAtCell(cell);
 					changed = true;
@@ -677,11 +833,13 @@ public class TileInteraction : MonoBehaviour
 				{
 					// Si soil ou wet soil, on remet herbe
 					overGrassTilemap.SetTile(cell, null);
+					soilWorld?.Unregister(new GridPos(cell.x, cell.y));
 					changed = true;
 				}
 				else if (IsDirt(dirtAtCell))
 				{
 					overGrassTilemap.SetTile(cell, null);
+					soilWorld?.Unregister(new GridPos(cell.x, cell.y));
 					changed = true;
 				}
 				break;
@@ -747,6 +905,7 @@ public class TileInteraction : MonoBehaviour
 
 		// Supprimer la culture du dictionnaire
 		plantedCrops.Remove(cell);
+		farmingWorld?.Remove(new GridPos(cell.x, cell.y));
 	}
 
 	private bool TryPlantSeed(Vector3 world, SeedData seedData)
@@ -768,7 +927,7 @@ public class TileInteraction : MonoBehaviour
 		// Planter seulement sur du soil ou wet soil
 		if (isSoilAtCell || isWetSoilAtCell)
 		{
-			if (seedData.CanPlant())
+			if (timeManager != null && seedData.CanPlant(timeManager.GetCurrentSeasonId()))
 			{
 				// Vérifier que les sprites de croissance sont définis
 				if (seedData.growthSprites == null || seedData.growthSprites.Length == 0)
@@ -792,6 +951,15 @@ public class TileInteraction : MonoBehaviour
 
 				// Enregistrer la culture
 				plantedCrops[cell] = crop;
+				farmingWorld?.Plant(
+					new GridPos(cell.x, cell.y),
+					new CropBlueprint(
+						growthStagesCount: crop.seedInstance.growthSprites != null ? crop.seedInstance.growthSprites.Length : 0,
+						growthSeasonId: (int)crop.seedInstance.growthSeason,
+						witherTimeDays: crop.seedInstance.witherTime,
+						isPerennial: crop.isPerennial,
+						productionIntervalDays: crop.seedInstance.productionInterval),
+					currentDay: crop.dayPlanted);
 
 				// Placer le sprite de culture (étape 0 = graine)
 				PlaceCropSprite(cell, 0);

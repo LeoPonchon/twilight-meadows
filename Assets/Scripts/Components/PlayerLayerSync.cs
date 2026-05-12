@@ -6,11 +6,16 @@ public class PlayerLayerSync : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private SortingGroup playerSortingGroup;
 
+    [SerializeField] private TopDownMovement player;
+
     private void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
-        
-        var player = FindObjectOfType<TopDownMovement>();
+
+        if (player == null)
+        {
+            player = FindObjectOfType<TopDownMovement>();
+        }
         if (player != null)
         {
             playerSortingGroup = player.GetComponent<SortingGroup>();

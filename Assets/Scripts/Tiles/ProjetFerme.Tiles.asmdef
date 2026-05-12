@@ -1,0 +1,22 @@
+{
+  "name": "ProjetFerme.Tiles",
+  "rootNamespace": "",
+  "references": [
+    "ProjetFerme.Core",
+    "ProjetFerme.Items",
+    "ProjetFerme.Inventory",
+    "ProjetFerme.Scene",
+    "ProjetFerme.Environment",
+    "ProjetFerme.Player",
+    "Unity.2D.Tilemap.Extras"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

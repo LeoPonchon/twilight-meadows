@@ -6,6 +6,7 @@ public class CollectiblesGenerator : MonoBehaviour
 {
 	[Header("Références")]
 	[SerializeField] private TimeManager timeManager;
+	[SerializeField] private SceneContext sceneContext;
 	[Tooltip("Tilemap où placer les rochers")]
 	[SerializeField] private Tilemap rocksTilemap;
 	[Tooltip("Tilemap où placer les arbres")]
@@ -56,7 +57,11 @@ public class CollectiblesGenerator : MonoBehaviour
 	{
 		if (timeManager == null)
 		{
-			timeManager = FindObjectOfType<TimeManager>();
+			if (sceneContext == null)
+			{
+				sceneContext = FindObjectOfType<SceneContext>();
+			}
+			timeManager = sceneContext != null ? sceneContext.Get<TimeManager>() : FindObjectOfType<TimeManager>();
 		}
 
 		if (randomSeed == 0)

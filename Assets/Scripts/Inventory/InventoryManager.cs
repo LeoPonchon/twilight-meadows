@@ -1,39 +1,44 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 /// <summary>
-/// Manager principal pour l'inventaire et la hotbar - gère la logique métier
+/// Manager principal pour l'inventaire et la hotbar - gÃ¨re la logique mÃ©tier
 /// </summary>
 public class InventoryManager : MonoBehaviour
 {
-    [Header("Références")]
+    [Header("RÃ©fÃ©rences")]
     [SerializeField] private Inventory playerInventory;
     [SerializeField] private PlayerInput playerInput;
     [SerializeField] private InventoryUI inventoryUI;
+    [SerializeField] private SceneContext sceneContext;
     
     [Header("Hotbar Settings")]
     [SerializeField] private int currentHotbarSlot = 0;
+    [SerializeField] private bool logHotbarBindings = false;
     
     [Header("UI Prefabs")]
     [SerializeField] private GameObject hotbarSelectorPrefab;
     [SerializeField] private GameObject slotSelectorPrefab;
     
     [Header("UI References")]
-    [SerializeField] private Transform uiParent; // Parent UI pour instancier les sélecteurs
+    [SerializeField] private Transform uiParent; // Parent UI pour instancier les sÃ©lecteurs
     
     [Header("Slot Manager")]
     [SerializeField] private InventorySlotManager slotManager;
+
+    [Header("Optional scene registries")]
+    [SerializeField] private MonoBehaviour[] shops;
     
-    // Variables pour gérer l'état de l'inventaire
+    // Variables pour gÃ©rer l'Ã©tat de l'inventaire
     private bool isInventoryOpen = false;
     
-    // Sélecteurs
+    // SÃ©lecteurs
     private GameObject hotbarSelectorInstance;
     private GameObject slotSelectorInstance;
     
-    // Événements
+    // Ã‰vÃ©nements
     public System.Action<int> OnHotbarSlotChanged;
     public System.Action<ItemStack> OnHotbarItemUsed;
     public System.Action<bool> OnInventoryStateChanged;
@@ -51,13 +56,13 @@ public class InventoryManager : MonoBehaviour
     {
         SetupInputEvents();
         InitializeSlotManager();
-        // Initialiser les sélecteurs après la création des slots
+        // Initialiser les sÃ©lecteurs aprÃ¨s la crÃ©ation des slots
         StartCoroutine(InitializeSelectorsAfterSlots());
     }
     
     private System.Collections.IEnumerator InitializeSelectorsAfterSlots()
     {
-        // Attendre une frame pour que les slots soient créés
+        // Attendre une frame pour que les slots soient crÃ©Ã©s
         yield return null;
         InitializeSelectors();
     }
@@ -66,27 +71,32 @@ public class InventoryManager : MonoBehaviour
     {
         HandleHotbarScroll();
     }
-    
     private void SetupInputEvents()
     {
         if (playerInput == null || playerInventory == null) return;
-        
-        // S'abonner aux événements d'input pour les slots de hotbar
+
+        // S'abonner aux évènements d'input pour les slots de hotbar
         for (int i = 0; i < playerInventory.maxHotbarSlots; i++)
         {
             var action = playerInput.actions.FindAction($"HotbarSlot{i + 1}");
             if (action != null)
             {
                 action.performed += _ => SelectHotbarSlot(i);
-                Debug.Log($"HotbarSlot{i + 1} action trouvée et connectée");
+                if (logHotbarBindings)
+                {
+                    Debug.Log($"HotbarSlot{i + 1} action trouvée et connectée");
+                }
             }
             else
             {
-                Debug.LogWarning($"HotbarSlot{i + 1} action non trouvée!");
+                if (logHotbarBindings)
+                {
+                    Debug.LogWarning($"HotbarSlot{i + 1} action non trouvée!");
+                }
             }
         }
     }
-    
+
     private void HandleHotbarScroll()
     {
         if (playerInput == null || playerInventory == null) return;
@@ -116,7 +126,7 @@ public class InventoryManager : MonoBehaviour
     {
         if (slotIndex >= 0 && slotIndex < playerInventory.maxHotbarSlots)
         {
-            Debug.Log($"Sélection du slot hotbar {slotIndex}");
+            Debug.Log($"SÃ©lection du slot hotbar {slotIndex}");
             currentHotbarSlot = slotIndex;
             OnHotbarSlotChanged?.Invoke(currentHotbarSlot);
             UpdateHotbarSelectorPosition();
@@ -180,9 +190,14 @@ public class InventoryManager : MonoBehaviour
     
     private void ValidateReferences()
     {
+        if (sceneContext == null)
+        {
+            sceneContext = FindObjectOfType<SceneContext>();
+        }
+
         if (playerInventory == null)
         {
-            playerInventory = FindObjectOfType<Inventory>();
+            playerInventory = sceneContext != null ? sceneContext.Get<Inventory>() : FindObjectOfType<Inventory>();
             if (playerInventory == null)
             {
                 Debug.LogError("playerInventory is not assigned and could not be found automatically in InventoryManager!", this);
@@ -191,7 +206,7 @@ public class InventoryManager : MonoBehaviour
         
         if (playerInput == null)
         {
-            playerInput = FindObjectOfType<PlayerInput>();
+            playerInput = sceneContext != null ? sceneContext.PlayerInput : FindObjectOfType<PlayerInput>();
             if (playerInput == null)
             {
                 Debug.LogError("playerInput is not assigned and could not be found automatically in InventoryManager!", this);
@@ -200,7 +215,7 @@ public class InventoryManager : MonoBehaviour
         
         if (inventoryUI == null)
         {
-            inventoryUI = FindObjectOfType<InventoryUI>();
+            inventoryUI = sceneContext != null ? sceneContext.Get<InventoryUI>() : FindObjectOfType<InventoryUI>();
             if (inventoryUI == null)
             {
                 Debug.LogError("inventoryUI is not assigned and could not be found automatically in InventoryManager!", this);
@@ -218,8 +233,8 @@ public class InventoryManager : MonoBehaviour
         
         if (uiParent == null)
         {
-            // Essayer de trouver un Canvas dans la scène
-            Canvas canvas = FindObjectOfType<Canvas>();
+            // Essayer de trouver un Canvas dans la scÃ¨ne
+            Canvas canvas = sceneContext != null ? sceneContext.UiCanvas : FindObjectOfType<Canvas>();
             if (canvas != null)
             {
                 uiParent = canvas.transform;
@@ -257,7 +272,7 @@ public class InventoryManager : MonoBehaviour
             playerInput.SwitchCurrentActionMap("UI");
         }
         
-        // Mettre à jour la visibilité des sélecteurs
+        // Mettre Ã  jour la visibilitÃ© des sÃ©lecteurs
         UpdateHotbarSelectorPosition();
         
         OnInventoryStateChanged?.Invoke(true);
@@ -272,7 +287,7 @@ public class InventoryManager : MonoBehaviour
             playerInput.SwitchCurrentActionMap("Game");
         }
         
-        // Mettre à jour la visibilité des sélecteurs
+        // Mettre Ã  jour la visibilitÃ© des sÃ©lecteurs
         UpdateHotbarSelectorPosition();
         
         OnInventoryStateChanged?.Invoke(false);
@@ -296,7 +311,7 @@ public class InventoryManager : MonoBehaviour
             slotManager.Initialize(playerInventory, inventoryUI);
             slotManager.CreateInventorySlots();
             
-            // Forcer la mise à jour de l'UI après la création des slots
+            // Forcer la mise Ã  jour de l'UI aprÃ¨s la crÃ©ation des slots
             if (inventoryUI != null)
             {
                 inventoryUI.UpdateInventoryUI();
@@ -324,25 +339,25 @@ public class InventoryManager : MonoBehaviour
             return;
         }
         
-        // Vérifier que les slots de hotbar existent
+        // VÃ©rifier que les slots de hotbar existent
         if (slotManager == null || slotManager.AllSlots.Count == 0)
         {
             Debug.LogError("InventoryManager: Cannot initialize hotbar selector - no slots created yet!");
             return;
         }
         
-        // Créer le sélecteur sous le parent UI
+        // CrÃ©er le sÃ©lecteur sous le parent UI
         hotbarSelectorInstance = Instantiate(hotbarSelectorPrefab, uiParent);
         hotbarSelectorInstance.name = "HotbarSelector";
         
-        // Configurer le sélecteur
+        // Configurer le sÃ©lecteur
         var image = hotbarSelectorInstance.GetComponent<UnityEngine.UI.Image>();
         if (image != null)
         {
             image.raycastTarget = false;
         }
         
-        // S'assurer que le sélecteur est au-dessus des autres éléments
+        // S'assurer que le sÃ©lecteur est au-dessus des autres Ã©lÃ©ments
         Canvas selectorCanvas = hotbarSelectorInstance.GetComponent<Canvas>();
         if (selectorCanvas == null)
         {
@@ -351,7 +366,7 @@ public class InventoryManager : MonoBehaviour
         selectorCanvas.overrideSorting = true;
         selectorCanvas.sortingOrder = 601;
         
-        // Activer le sélecteur
+        // Activer le sÃ©lecteur
         hotbarSelectorInstance.SetActive(true);
         
         UpdateHotbarSelectorPosition();
@@ -380,7 +395,7 @@ public class InventoryManager : MonoBehaviour
     {
         if (hotbarSelectorInstance == null) return;
         
-        // Afficher le sélecteur seulement en mode Game
+        // Afficher le sÃ©lecteur seulement en mode Game
         bool shouldShow = playerInput != null && playerInput.currentActionMap != null && playerInput.currentActionMap.name == "Game";
         hotbarSelectorInstance.SetActive(shouldShow);
     }
@@ -399,7 +414,7 @@ public class InventoryManager : MonoBehaviour
         slotSelectorInstance = Instantiate(slotSelectorPrefab, uiParent);
         slotSelectorInstance.name = "SlotSelector";
         
-        // Configurer le sélecteur pour qu'il n'affecte pas le layout
+        // Configurer le sÃ©lecteur pour qu'il n'affecte pas le layout
         RectTransform rectTransform = slotSelectorInstance.GetComponent<RectTransform>();
         if (rectTransform != null)
         {
@@ -408,7 +423,7 @@ public class InventoryManager : MonoBehaviour
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
         }
         
-        // S'assurer que le sélecteur est au-dessus des autres éléments
+        // S'assurer que le sÃ©lecteur est au-dessus des autres Ã©lÃ©ments
         Canvas selectorCanvas = slotSelectorInstance.GetComponent<Canvas>();
         if (selectorCanvas == null)
         {
@@ -417,7 +432,7 @@ public class InventoryManager : MonoBehaviour
         selectorCanvas.overrideSorting = true;
         selectorCanvas.sortingOrder = 600; // Juste en dessous du hotbar selector
         
-        // Désactiver par défaut
+        // DÃ©sactiver par dÃ©faut
         slotSelectorInstance.SetActive(false);
     }
     
@@ -428,7 +443,7 @@ public class InventoryManager : MonoBehaviour
     
     public void ShowSlotSelector(GameObject slot)
     {
-        // Ne pas afficher le sélecteur de slot en mode jeu
+        // Ne pas afficher le sÃ©lecteur de slot en mode jeu
         if (playerInput != null && playerInput.currentActionMap.name == "Game") return;
         
         if (slotSelectorInstance != null && slot != null)
@@ -447,14 +462,20 @@ public class InventoryManager : MonoBehaviour
     
     private void CloseShopIfOpen()
     {
-        // Trouver et fermer tous les shops ouverts
-        var npcVendors = FindObjectsOfType<NPCVendor>();
-        foreach (var vendor in npcVendors)
+        // Fermer les shops cÃ¢blÃ©s dans la scÃ¨ne (pas de scan global par dÃ©faut)
+        if (shops == null || shops.Length == 0) return;
+
+        var candidateBehaviours = shops;
+        foreach (var behaviour in candidateBehaviours)
         {
-            if (vendor.IsShopOpen)
-            {
-                vendor.CloseShop();
-            }
+            if (behaviour is not IShopUi shopUi) continue;
+            if (!shopUi.IsShopOpen) continue;
+            shopUi.CloseShop();
         }
     }
 }
+
+
+
+
+

@@ -9,15 +9,24 @@ public class CameraZoom : MonoBehaviour
     public float minZoom = 5f;
     public float maxZoom = 20f;
 
-    private PlayerInput playerInput;
+    [SerializeField] private PlayerInput playerInput;
+    [SerializeField] private SceneContext sceneContext;
     private float currentZoomLevel;
 
     void Start()
     {
-        playerInput = GetComponent<PlayerInput>();
+        if (sceneContext == null)
+        {
+            sceneContext = FindObjectOfType<SceneContext>();
+        }
+
         if (playerInput == null)
         {
-            playerInput = FindObjectOfType<PlayerInput>();
+            playerInput = GetComponent<PlayerInput>();
+        }
+        if (playerInput == null)
+        {
+            playerInput = sceneContext != null ? sceneContext.PlayerInput : FindObjectOfType<PlayerInput>();
         }
         
         // Initialiser le niveau de zoom actuel

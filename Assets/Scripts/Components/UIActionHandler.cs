@@ -11,16 +11,26 @@ public class UIActionHandler : MonoBehaviour
 {
 	[SerializeField] private PlayerInput playerInput;
 	[SerializeField] private InventoryManager inventoryManager;
+	[SerializeField] private SceneContext sceneContext;
+
+	[Header("Optional scene registries")]
+	[SerializeField] private ShopRegistry shopRegistry;
+	[SerializeField] private DialogueRegistry dialogueRegistry;
 
 	private void Awake()
 	{
+		if (sceneContext == null)
+		{
+			sceneContext = FindObjectOfType<SceneContext>();
+		}
+
 		if (playerInput == null)
 		{
-			playerInput = FindObjectOfType<PlayerInput>();
+			playerInput = sceneContext != null ? sceneContext.PlayerInput : FindObjectOfType<PlayerInput>();
 		}
 		if (inventoryManager == null)
 		{
-			inventoryManager = FindObjectOfType<InventoryManager>();
+			inventoryManager = sceneContext != null ? sceneContext.Get<InventoryManager>() : FindObjectOfType<InventoryManager>();
 		}
 	}
 
@@ -63,22 +73,26 @@ public class UIActionHandler : MonoBehaviour
 			inventoryManager.CloseInventory();
 		}
 
-		var vendors = FindObjectsOfType<NPCVendor>();
-		for (int i = 0; i < vendors.Length; i++)
+		if (shopRegistry != null && shopRegistry.Shops != null)
 		{
-			if (vendors[i] != null && vendors[i].IsShopOpen)
+			var shops = shopRegistry.Shops;
+			for (int i = 0; i < shops.Length; i++)
 			{
-				vendors[i].CloseShop();
+				if (shops[i] is not IShopUi shopUi) continue;
+				if (!shopUi.IsShopOpen) continue;
+				shopUi.CloseShop();
 			}
 		}
 
 		// Fermer les dialogues ouverts
-		var npcControllers = FindObjectsOfType<NPCController>();
-		for (int i = 0; i < npcControllers.Length; i++)
+		if (dialogueRegistry != null && dialogueRegistry.Dialogues != null)
 		{
-			if (npcControllers[i] != null && npcControllers[i].dialogueUI != null && npcControllers[i].dialogueUI.activeInHierarchy)
+			var dialogues = dialogueRegistry.Dialogues;
+			for (int i = 0; i < dialogues.Length; i++)
 			{
-				npcControllers[i].dialogueUI.SetActive(false);
+				if (dialogues[i] is not IDialogueUi dialogueUi) continue;
+				if (!dialogueUi.IsDialogueOpen) continue;
+				dialogueUi.CloseDialogue();
 			}
 		}
 

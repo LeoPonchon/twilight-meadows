@@ -5,7 +5,7 @@ using TMPro;
 /// <summary>
 /// Contrôleur simplifié pour les NPCs - déclenche les dialogues depuis NPCData
 /// </summary>
-public class NPCController : MonoBehaviour
+public class NPCController : MonoBehaviour, IDialogueUi
 {
     [Header("Configuration")]
     public NPCData npcData;
@@ -17,20 +17,32 @@ public class NPCController : MonoBehaviour
     public TextMeshProUGUI npcDialogueText;
     
     private bool isPlayerInRange = false;
-    private PlayerInput playerInput;
+    [SerializeField] private PlayerInput playerInput;
+    [SerializeField] private SceneContext sceneContext;
     private InputAction interactAction;
     private InputAction uiInteractAction;
     private int currentDialogueIndex = 0;
     
     private void Awake()
     {
-        playerInput = FindObjectOfType<PlayerInput>();
+        if (sceneContext == null)
+            sceneContext = FindObjectOfType<SceneContext>();
+
+        if (playerInput == null)
+            playerInput = sceneContext != null ? sceneContext.PlayerInput : FindObjectOfType<PlayerInput>();
         
         if (npcData == null)
         {
             Debug.LogWarning($"NPCController sur {gameObject.name}: Aucune NPCData assignée!");
         }
         
+    }
+
+    public bool IsDialogueOpen => dialogueUI != null && dialogueUI.activeInHierarchy;
+
+    public void CloseDialogue()
+    {
+        if (dialogueUI != null) dialogueUI.SetActive(false);
     }
     
     private void Start()
@@ -186,4 +198,3 @@ public class NPCController : MonoBehaviour
         }
     }
 }
-

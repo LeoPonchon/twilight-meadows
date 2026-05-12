@@ -1,142 +1,121 @@
-using TMPro;
-using UnityEngine.Rendering;
-using UnityEngine;
 using System;
+using TMPro;
+using UnityEngine;
+using UnityEngine.Rendering;
 
-public class TimeManager     : MonoBehaviour
+public class TimeManager : MonoBehaviour
 {
+    [Header("UI")]
     [SerializeField] private TextMeshProUGUI timeDisplay;
     [SerializeField] private TextMeshProUGUI dayDisplay;
     [SerializeField] private TextMeshProUGUI seasonDisplay;
     [SerializeField] private TextMeshProUGUI yearDisplay;
-    private Volume ppv;
 
-    [SerializeField] private float tick;
-    [SerializeField] private float seconds;
-    [SerializeField] private int mins;
-    [SerializeField] private int hours = 9;
-    [SerializeField] private int days = 1;
-    [SerializeField] private int seasonId = 1;
-    [SerializeField] private int year = 1;
+    [Header("Time Settings")]
+    [SerializeField] private float tick = 1f;
+    [SerializeField] private int startingHours = 9;
+    [SerializeField] private int startingDay = 1;
+    [SerializeField] private int startingSeasonId = 1;
+    [SerializeField] private int startingYear = 1;
 
+    [Header("Lighting")]
     [SerializeField] private bool activateLights;
     [SerializeField] private GameObject[] lights;
 
+    [Header("References")]
+    [SerializeField] private WeatherManager weatherManager;
+    [SerializeField] private SceneContext sceneContext;
+
     public event Action<int, string> OnSeasonStarted;
     public event Action<int> OnDayChanged;
-    
-    private WeatherManager weatherManager;
 
-    void Start()
+    private Volume ppv;
+    private GameClock clock;
+
+    private void Start()
     {
-        ppv = gameObject.GetComponent<Volume>();
-        weatherManager = FindObjectOfType<WeatherManager>();
+        ppv = GetComponent<Volume>();
+        if (sceneContext == null)
+        {
+            sceneContext = FindObjectOfType<SceneContext>();
+        }
+        if (weatherManager == null)
+        {
+            weatherManager = sceneContext != null ? sceneContext.Get<WeatherManager>() : FindObjectOfType<WeatherManager>();
+        }
+
+        clock = new GameClock(startingHours, startingDay, startingSeasonId, startingYear);
+        clock.DayChanged += HandleDayChanged;
+        clock.SeasonStarted += HandleSeasonStarted;
     }
 
-    void FixedUpdate()
+    private void OnDestroy()
     {
-        CalcTime();
+        if (clock != null)
+        {
+            clock.DayChanged -= HandleDayChanged;
+            clock.SeasonStarted -= HandleSeasonStarted;
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (clock == null) return;
+        clock.TickFixed(Time.fixedDeltaTime, tick);
+        ControlPPV();
         DisplayTime();
     }
 
-    public void CalcTime()
+    private void HandleDayChanged(int day)
     {
-        seconds += Time.fixedDeltaTime * tick;
-
-        if (seconds >= 60)
-        {
-            seconds = 0;
-            mins += 10;
-        }
-
-        if (mins >= 60)
-        {
-            mins = 0;
-            hours += 1;
-        }
-
-        bool dayChanged = false;
-        if (hours >= 24)
-        {
-            hours = 0;
-            days += 1; // Incr�menter les jours sans retourner � 0
-            dayChanged = true;
-        }
-
-        bool seasonChanged = false;
-        if (days > 28)
-        {
-            days = 1; // R�initialiser les jours du mois apr�s 28
-            seasonId += 1; // Passer � la saison suivante
-            seasonChanged = true;
-        }
-
-        if (seasonId > 4)
-        {
-            seasonId = 1; // Retourner au printemps apr�s l'hiver
-            year += 1; // Incr�menter l'ann�e
-        }
-
-        if (dayChanged)
-        {
-            OnDayChanged?.Invoke(days);
-        }
-
-        if (seasonChanged)
-        {
-            OnSeasonStarted?.Invoke(seasonId, GetSeasonNameById(seasonId));
-        }
-
-        ControlPPV();
+        OnDayChanged?.Invoke(day);
     }
 
+    private void HandleSeasonStarted(int seasonId, string seasonName)
+    {
+        OnSeasonStarted?.Invoke(seasonId, seasonName);
+    }
 
     public void ControlPPV()
     {
-        // Déterminer la luminosité de base en journée (0 = plein jour, 1 = pleine nuit)
-        // Sous la pluie/orage, on plafonne la baisse à 0.5 pour un jour plus terne
+        if (ppv == null) return;
+
         float baseDayWeight = 0f;
         if (weatherManager != null)
         {
-            var w = weatherManager.GetCurrentWeather();
+            var w = weatherManager.CurrentWeather;
             if (w == WeatherType.Rainy || w == WeatherType.Stormy)
             {
                 baseDayWeight = 0.5f;
             }
         }
-        // Si weatherManager n'est pas encore initialisé, utiliser la valeur par défaut (jour ensoleillé)
 
-        // Transition jour → nuit (18h à 24h)
+        int hours = clock.Hours;
+        int mins = clock.Minutes;
+
         if (hours >= 18 && hours < 24)
         {
-            // Calculer le pourcentage dans la période 18h-24h (6 heures)
             float progress = ((hours - 18) * 60 + mins) / (6f * 60f);
-            // Part de jour (0) vers nuit (1)
             ppv.weight = Mathf.Lerp(baseDayWeight, 1f, progress);
         }
-        // Nuit complète (0h à 6h)
         else if (hours >= 0 && hours < 6)
         {
             ppv.weight = 1f;
         }
-        // Transition nuit → jour (6h à 12h)
         else if (hours >= 6 && hours < 12)
         {
-            // Calculer le pourcentage dans la période 6h-12h (6 heures)
             float progress = ((hours - 6) * 60 + mins) / (6f * 60f);
-            // Nuit (1) vers jour (0) mais plafonné à baseDayWeight si pluie
             ppv.weight = Mathf.Lerp(1f, baseDayWeight, progress);
         }
-        // Jour complet (12h à 18h)
         else
         {
             ppv.weight = baseDayWeight;
         }
-        
-        ControlLights();
+
+        ControlLights(hours, mins);
     }
 
-    void ControlLights()
+    private void ControlLights(int hours, int mins)
     {
         if (hours >= 21 && hours <= 22 && !activateLights && mins > 45)
         {
@@ -152,6 +131,14 @@ public class TimeManager     : MonoBehaviour
 
     public void DisplayTime()
     {
+        if (timeDisplay == null || dayDisplay == null || seasonDisplay == null || yearDisplay == null) return;
+
+        int hours = clock.Hours;
+        int mins = clock.Minutes;
+        int days = clock.Day;
+        int seasonId = clock.SeasonId;
+        int year = clock.Year;
+
         string dayNameToDisplay = (days % 7) switch { 1 => "Mon", 2 => "Tue", 3 => "Wed", 4 => "Thu", 5 => "Fri", 6 => "Sat", 0 => "Sun", _ => "" };
         string seasonToDisplay = seasonId switch { 1 => "Spring", 2 => "Summer", 3 => "Autumn", 4 => "Winter", _ => "" };
 
@@ -161,40 +148,13 @@ public class TimeManager     : MonoBehaviour
         yearDisplay.text = "Year " + year;
     }
 
-    private string GetSeasonNameById(int id)
-    {
-        switch (id)
-        {
-            case 1: return "Spring";
-            case 2: return "Summer";
-            case 3: return "Autumn";
-            case 4: return "Winter";
-            default: return string.Empty;
-        }
-    }
+    public int GetCurrentHour() => clock != null ? clock.Hours : startingHours;
 
-    public int GetCurrentHour()
-    {
-        return hours;
-    }
+    public int GetCurrentMins() => clock != null ? clock.Minutes : 0;
 
-    internal int GetCurrentMins()
-    {
-        return mins;
-    }
+    public int GetCurrentDay() => clock != null ? clock.Day : startingDay;
 
-    internal int GetCurrentDay()
-    {
-        return days;
-    }
+    public string GetCurrentSeason() => seasonDisplay != null ? seasonDisplay.text : GameClock.GetSeasonNameById(startingSeasonId);
 
-    internal string GetCurrentSeason()
-    {
-        return seasonDisplay.text;
-    }
-
-    internal int GetCurrentSeasonId()
-    {
-        return seasonId;
-    }
+    public int GetCurrentSeasonId() => clock != null ? clock.SeasonId : startingSeasonId;
 }

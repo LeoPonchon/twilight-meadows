@@ -9,6 +9,7 @@ public class WeaponAttackSystem : MonoBehaviour
     [SerializeField] private Inventory playerInventory;
     [SerializeField] private InventoryUI inventoryUI;
     [SerializeField] private Transform playerTransform;
+    [SerializeField] private SceneContext sceneContext;
     
     [Header("Tilemaps")]
     [SerializeField] private Tilemap foliageTilemap;
@@ -26,12 +27,15 @@ public class WeaponAttackSystem : MonoBehaviour
     private void Awake()
     {
         mainCamera = Camera.main;
+
+        if (sceneContext == null)
+            sceneContext = FindObjectOfType<SceneContext>();
         
         // Trouver automatiquement les références si elles ne sont pas assignées
         if (playerInventory == null)
-            playerInventory = FindObjectOfType<Inventory>();
+            playerInventory = sceneContext != null ? sceneContext.Get<Inventory>() : FindObjectOfType<Inventory>();
         if (inventoryUI == null)
-            inventoryUI = FindObjectOfType<InventoryUI>();
+            inventoryUI = sceneContext != null ? sceneContext.Get<InventoryUI>() : FindObjectOfType<InventoryUI>();
         if (playerTransform == null)
             playerTransform = transform;
     }

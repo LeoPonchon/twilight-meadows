@@ -4,13 +4,15 @@ using UnityEngine.InputSystem;
 /// <summary>
 /// Composant pour les NPCs vendeurs qui ouvrent un panel de magasin
 /// </summary>
-public class NPCVendor : MonoBehaviour
+public class NPCVendor : MonoBehaviour, IShopUi
 {
     [Header("Configuration")]
     [SerializeField] private GameObject shopPanel;
     [SerializeField] private string interactionActionName = "Interact";
     
-    private PlayerInput playerInput;
+    [SerializeField] private PlayerInput playerInput;
+    [SerializeField] private InventoryManager inventoryManager;
+    [SerializeField] private SceneContext sceneContext;
     private bool isPlayerInRange = false;
     private bool isShopOpen = false;
     private InputAction interactAction;
@@ -18,7 +20,14 @@ public class NPCVendor : MonoBehaviour
     
     private void Awake()
     {
-        playerInput = FindObjectOfType<PlayerInput>();
+        if (sceneContext == null)
+            sceneContext = FindObjectOfType<SceneContext>();
+
+        if (playerInput == null)
+            playerInput = sceneContext != null ? sceneContext.PlayerInput : FindObjectOfType<PlayerInput>();
+
+        if (inventoryManager == null)
+            inventoryManager = sceneContext != null ? sceneContext.Get<InventoryManager>() : FindObjectOfType<InventoryManager>();
         if (playerInput == null)
         {
             Debug.LogError("NPCVendor: PlayerInput non trouvé dans la scène!");
@@ -182,7 +191,6 @@ public class NPCVendor : MonoBehaviour
     
     private void CloseInventoryIfOpen()
     {
-        var inventoryManager = FindObjectOfType<InventoryManager>();
         if (inventoryManager != null && inventoryManager.IsInventoryOpen)
         {
             inventoryManager.CloseInventory();

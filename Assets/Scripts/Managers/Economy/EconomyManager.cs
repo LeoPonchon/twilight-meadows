@@ -10,8 +10,6 @@ using UnityEngine;
 /// </summary>
 public class EconomyManager : MonoBehaviour
 {
-    public static EconomyManager Instance { get; private set; }
-
     [Header("Configuration")]
     [Tooltip("Or initial du joueur")]
     [SerializeField] private int startingGold = 0;
@@ -23,23 +21,34 @@ public class EconomyManager : MonoBehaviour
     /// <summary>
     /// Or actuel du joueur
     /// </summary>
-    public int Gold { get; private set; }
+    public int Gold => wallet != null ? wallet.Gold : 0;
 
     /// <summary>
     /// Ev��nement déclenché à chaque changement d'or (passe la valeur actuelle)
     /// </summary>
     public event Action<int> OnGoldChanged;
 
+    private GoldWallet wallet;
+
     private void Awake()
     {
-        if (Instance != null && Instance != this)
+        wallet = new GoldWallet(startingGold);
+        wallet.GoldChanged += OnWalletGoldChanged;
+        UpdateUI(wallet.Gold);
+    }
+
+    private void OnDestroy()
+    {
+        if (wallet != null)
         {
-            Destroy(this);
-            return;
+            wallet.GoldChanged -= OnWalletGoldChanged;
         }
-        Instance = this;
-        Gold = Mathf.Max(0, startingGold);
-        UpdateUI();
+    }
+
+    private void OnWalletGoldChanged(int gold)
+    {
+        OnGoldChanged?.Invoke(gold);
+        UpdateUI(gold);
     }
 
     /// <summary>
@@ -47,10 +56,7 @@ public class EconomyManager : MonoBehaviour
     /// </summary>
     public void AddGold(int amount)
     {
-        if (amount <= 0) return;
-        Gold += amount;
-        OnGoldChanged?.Invoke(Gold);
-        UpdateUI();
+        wallet?.Add(amount);
     }
 
     /// <summary>
@@ -58,7 +64,7 @@ public class EconomyManager : MonoBehaviour
     /// </summary>
     public bool CanSpend(int amount)
     {
-        return amount >= 0 && Gold >= amount;
+        return wallet != null && wallet.CanSpend(amount);
     }
 
     /// <summary>
@@ -66,11 +72,7 @@ public class EconomyManager : MonoBehaviour
     /// </summary>
     public bool Spend(int amount)
     {
-        if (!CanSpend(amount)) return false;
-        Gold -= amount;
-        OnGoldChanged?.Invoke(Gold);
-        UpdateUI();
-        return true;
+        return wallet != null && wallet.Spend(amount);
     }
 
     /// <summary>
@@ -78,9 +80,7 @@ public class EconomyManager : MonoBehaviour
     /// </summary>
     public void SetGold(int amount)
     {
-        Gold = Mathf.Max(0, amount);
-        OnGoldChanged?.Invoke(Gold);
-        UpdateUI();
+        wallet?.Set(amount);
     }
 
     /// <summary>
@@ -89,14 +89,14 @@ public class EconomyManager : MonoBehaviour
     public void BindGoldUI(TextMeshProUGUI ui)
     {
         goldText = ui;
-        UpdateUI();
+        UpdateUI(Gold);
     }
 
-    private void UpdateUI()
+    private void UpdateUI(int gold)
     {
         if (goldText != null)
         {
-            goldText.text = $"{Gold}g";
+            goldText.text = $"{gold}g";
         }
     }
 }

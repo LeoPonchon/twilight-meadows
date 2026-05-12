@@ -1,0 +1,22 @@
+{
+  "name": "ProjetFerme.Components",
+  "rootNamespace": "",
+  "references": [
+    "ProjetFerme.Scene",
+    "ProjetFerme.Inventory",
+    "ProjetFerme.Shop",
+    "ProjetFerme.NPC",
+    "ProjetFerme.Player",
+    "ProjetFerme.Core",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
