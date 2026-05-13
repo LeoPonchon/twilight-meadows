@@ -20,7 +20,8 @@ public class InventoryUI : MonoBehaviour
     
     private InventoryDragAndDrop dragAndDrop;
     private InventoryTooltip tooltip;
-    private GameObject slotSelectorInstance;
+    private GameObject hoverSelectorInstance;
+    private GameObject hotbarSelectorInstance;
 
     private void Awake()
     {
@@ -31,12 +32,23 @@ public class InventoryUI : MonoBehaviour
     {
         SetupEventListeners();
         InitializeSlots();
-        InitializeSlotSelector();
+        InitializeSelectors();
+        UpdateHotbarSelectionVisual(GetCurrentHotbarSlot());
     }
 
     private void OnDisable()
     {
         HideTooltipAndSelector();
+    }
+
+    private void OnDestroy()
+    {
+        if (playerInventory != null) playerInventory.OnInventoryChanged -= UpdateInventory;
+        if (inventoryManager != null)
+        {
+            inventoryManager.OnInventoryStateChanged -= OnInventoryStateChanged;
+            inventoryManager.OnHotbarSlotChanged -= OnHotbarSlotChanged;
+        }
     }
 
     private void InitializeComponents()
@@ -53,6 +65,7 @@ public class InventoryUI : MonoBehaviour
         if (inventoryManager != null)
         {
             inventoryManager.OnInventoryStateChanged += OnInventoryStateChanged;
+            inventoryManager.OnHotbarSlotChanged += OnHotbarSlotChanged;
         }
     }
 
@@ -100,6 +113,24 @@ public class InventoryUI : MonoBehaviour
             
         if (!isOpen)
             HideTooltipAndSelector();
+    }
+
+    private void OnHotbarSlotChanged(int hotbarSlotIndex)
+    {
+        UpdateHotbarSelectionVisual(hotbarSlotIndex);
+    }
+
+    private void UpdateHotbarSelectionVisual(int hotbarSlotIndex)
+    {
+        if (hotbarSelectorInstance == null || slotManager == null) return;
+
+        // Hotbar slots are stored with IDs 0..maxHotbarSlots-1 in InventorySlotManager.
+        GameObject slot = slotManager.GetSlot(hotbarSlotIndex);
+        if (slot == null) return;
+
+        hotbarSelectorInstance.SetActive(true);
+        hotbarSelectorInstance.transform.position = slot.transform.position;
+        hotbarSelectorInstance.transform.SetAsLastSibling();
     }
 
     public void HandleLeftClick(int slotID)
@@ -183,31 +214,41 @@ public class InventoryUI : MonoBehaviour
     }
 
     /// Initialise le sélecteur de slot
-private void InitializeSlotSelector()
+private void InitializeSelectors()
     {
-        if (slotSelectorInstance != null) return;
         if (slotSelectorPrefab == null) return;
 
         if (selectorParent == null) selectorParent = transform;
-        slotSelectorInstance = Instantiate(slotSelectorPrefab, selectorParent);
-        slotSelectorInstance.name = slotSelectorPrefab.name;
-        HideSlotSelector();
+
+        if (hoverSelectorInstance == null)
+        {
+            hoverSelectorInstance = Instantiate(slotSelectorPrefab, selectorParent);
+            hoverSelectorInstance.name = slotSelectorPrefab.name;
+            HideSlotSelector();
+        }
+
+        if (hotbarSelectorInstance == null)
+        {
+            hotbarSelectorInstance = Instantiate(slotSelectorPrefab, selectorParent);
+            hotbarSelectorInstance.name = slotSelectorPrefab.name + "_HotbarSelected";
+            hotbarSelectorInstance.SetActive(false);
+        }
     }
     
     /// Affiche le sélecteur sur un slot
 public void ShowSlotSelector(GameObject slot)
     {
-        if (slotSelectorInstance == null || slot == null) return;
+        if (hoverSelectorInstance == null || slot == null) return;
 
-        slotSelectorInstance.SetActive(true);
-        slotSelectorInstance.transform.position = slot.transform.position;
-        slotSelectorInstance.transform.SetAsLastSibling();
+        hoverSelectorInstance.SetActive(true);
+        hoverSelectorInstance.transform.position = slot.transform.position;
+        hoverSelectorInstance.transform.SetAsLastSibling();
     }
     
     /// Cache le sélecteur de slot
 public void HideSlotSelector()
     {
-        if (slotSelectorInstance != null) slotSelectorInstance.SetActive(false);
+        if (hoverSelectorInstance != null) hoverSelectorInstance.SetActive(false);
     }
 
 }
