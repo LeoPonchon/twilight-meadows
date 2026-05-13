@@ -1,0 +1,20 @@
+{
+  "name": "Game.World.Player",
+  "rootNamespace": "",
+  "references": [
+    "Game.Core.SceneFlow",
+    "Unity.InputSystem",
+    "Game.Data",
+    "Game.Data.Items",
+    "Cinemachine"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,0 +1,85 @@
+using System;
+using UnityEngine;
+
+/// <summary>
+/// Gestionnaire d'économie simple pour l'or du joueur.
+/// - Singleton accessible via Instance
+/// - Evénement OnGoldChanged pour mettre à jour un HUD éventuel
+/// - Méthodes AddGold / Spend / CanSpend
+/// </summary>
+public class EconomyManager : MonoBehaviour
+{
+    [Header("Configuration")]
+    [Tooltip("Or initial du joueur")]
+    [SerializeField] private int startingGold = 0;
+
+    /// <summary>
+    /// Or actuel du joueur
+    /// </summary>
+    public int Gold => wallet != null ? wallet.Gold : 0;
+
+    /// <summary>
+    /// Ev��nement déclenché à chaque changement d'or (passe la valeur actuelle)
+    /// </summary>
+    public event Action<int> OnGoldChanged;
+
+    private GoldWallet wallet;
+
+    private void Awake()
+    {
+        wallet = new GoldWallet(startingGold);
+        wallet.GoldChanged += OnWalletGoldChanged;
+        OnGoldChanged?.Invoke(wallet.Gold);
+    }
+
+    private void OnDestroy()
+    {
+        if (wallet != null)
+        {
+            wallet.GoldChanged -= OnWalletGoldChanged;
+        }
+    }
+
+    private void OnWalletGoldChanged(int gold)
+    {
+        OnGoldChanged?.Invoke(gold);
+    }
+
+    /// <summary>
+    /// Ajoute de l'or
+    /// </summary>
+    public void AddGold(int amount)
+    {
+        wallet?.Add(amount);
+    }
+
+    /// <summary>
+    /// Indique si on peut dépenser une certaine somme
+    /// </summary>
+    public bool CanSpend(int amount)
+    {
+        return wallet != null && wallet.CanSpend(amount);
+    }
+
+    /// <summary>
+    /// Dépense de l'or si possible
+    /// </summary>
+    public bool Spend(int amount)
+    {
+        return wallet != null && wallet.Spend(amount);
+    }
+
+    /// <summary>
+    /// Fixe directement la valeur d'or (>=0)
+    /// </summary>
+    public void SetGold(int amount)
+    {
+        wallet?.Set(amount);
+    }
+
+    public void NotifyCurrentGold()
+    {
+        if (wallet == null) return;
+        OnGoldChanged?.Invoke(wallet.Gold);
+    }
+}

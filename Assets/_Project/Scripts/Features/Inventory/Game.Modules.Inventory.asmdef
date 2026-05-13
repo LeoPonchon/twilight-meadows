@@ -1,0 +1,21 @@
+{
+  "name": "Game.Modules.Inventory",
+  "rootNamespace": "",
+  "references": [
+    "Game.Core",
+    "Game.Data.Items",
+    "Game.Core.SceneFlow",
+    "Unity.InputSystem",
+    "Unity.TextMeshPro",
+    "Game.Data"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

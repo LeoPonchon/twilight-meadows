@@ -1,0 +1,23 @@
+{
+  "name": "ProjetFerme.Tests.PlayMode",
+  "rootNamespace": "",
+  "references": [
+    "Game.Core.SceneFlow",
+    "Game.Modules.Weather",
+    "Game.Modules.Inventory",
+    "Game.Modules.Time",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

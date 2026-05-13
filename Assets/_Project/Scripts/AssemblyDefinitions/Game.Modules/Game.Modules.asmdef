@@ -1,0 +1,19 @@
+{
+  "name": "Game.Modules",
+  "rootNamespace": "",
+  "references": [
+    "Game.Core",
+    "Game.Core.SceneFlow",
+    "Game.Data",
+    "Game.Data.Items"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

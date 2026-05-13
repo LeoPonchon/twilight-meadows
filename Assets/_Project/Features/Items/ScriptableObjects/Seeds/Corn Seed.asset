@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cb2df2f5f6b6d24db8568437fc64a5d, type: 3}
+  m_Name: Corn Seed
+  m_EditorClassIdentifier: 
+  itemName: Corn Seeds
+  description: Tall-growing corn seeds. Needs space but yields well.
+  icon: {fileID: 21300000, guid: 526aea87e9b3f664e9cb8b52bb738f8b, type: 3}
+  pickupSprite: {fileID: 21300000, guid: 526aea87e9b3f664e9cb8b52bb738f8b, type: 3}
+  isStackable: 1
+  growthSprites:
+  - {fileID: 21300000, guid: 72b438566b7ad50468e13ef464650bec, type: 3}
+  - {fileID: 21300000, guid: 9d52883bdc9e7f8488c4daa89d49a0aa, type: 3}
+  - {fileID: 21300000, guid: c16165006ffbd9841b8b2f4d3849375e, type: 3}
+  - {fileID: 21300000, guid: 6595c9db3640997438b31ead7c88dc64, type: 3}
+  witheredSprite: {fileID: 21300000, guid: 6e6a86283e5e852428f516d9dbd52ea2, type: 3}
+  growthSeason: 2
+  harvestProduct: {fileID: 11400000, guid: ef1870ccc9709e445853fbcc6a54d455, type: 2}
+  harvestQuantity: 3
+  witherTime: 3
+  isPerennial: 0
+  productionInterval: 2
+  fruitSprite: {fileID: 0}

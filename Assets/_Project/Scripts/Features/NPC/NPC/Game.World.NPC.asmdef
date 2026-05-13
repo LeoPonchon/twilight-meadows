@@ -1,0 +1,19 @@
+{
+  "name": "Game.World.NPC",
+  "rootNamespace": "",
+  "references": [
+    "Game.Core.SceneFlow",
+    "Game.Core",
+    "Unity.InputSystem",
+    "Unity.TextMeshPro"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

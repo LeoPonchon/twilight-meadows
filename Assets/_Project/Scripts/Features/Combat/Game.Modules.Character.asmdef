@@ -1,0 +1,19 @@
+{
+  "name": "Game.Modules.Character",
+  "rootNamespace": "",
+  "references": [
+    "Game.Data.Items",
+    "Game.Modules.Inventory",
+    "Game.Core.SceneFlow",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cb2df2f5f6b6d24db8568437fc64a5d, type: 3}
+  m_Name: Pumpkin Seed
+  m_EditorClassIdentifier: 
+  itemName: Pumpkin Seeds
+  description: Large pumpkin seeds. Perfect for autumn harvests!
+  icon: {fileID: 21300000, guid: 1b98709aed025a14e9758f0b30792b1a, type: 3}
+  pickupSprite: {fileID: 21300000, guid: 1b98709aed025a14e9758f0b30792b1a, type: 3}
+  isStackable: 1
+  growthSprites:
+  - {fileID: 21300000, guid: 207c43cb827788043b00249335a47564, type: 3}
+  - {fileID: 21300000, guid: 0f2e86327f83c9b4988f68d53a783e36, type: 3}
+  - {fileID: 21300000, guid: 7b32541508e193f4f9a8e430277fb03d, type: 3}
+  - {fileID: 21300000, guid: 5be6ba920865d3441928564b55f80316, type: 3}
+  witheredSprite: {fileID: 21300000, guid: ec9e5fdcb79727f4aa39d03e7d1a4ca0, type: 3}
+  growthSeason: 3
+  harvestProduct: {fileID: 11400000, guid: 73df390762901fc46b273fe34338a974, type: 2}
+  harvestQuantity: 4
+  witherTime: 4
+  isPerennial: 0
+  productionInterval: 2
+  fruitSprite: {fileID: 0}
