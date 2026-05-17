@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae995dda986182249be571ee0249af7e, type: 3}
+  m_Name: SoilRuleTileSet
+  m_EditorClassIdentifier: 
+  dugTile: {fileID: 11400000, guid: 2f6802aae57230131567d429a2e03430, type: 2}
+  tilledTile: {fileID: 11400000, guid: fa2d1a7f123c7425fececba663b46bec, type: 2}
+  tilledWetTile: {fileID: 11400000, guid: c851b2d13c1d75d4f0bc91bcb779036b, type: 2}

@@ -4,19 +4,30 @@ using UnityEngine.Tilemaps;
 
 public sealed class DropService
 {
+    [System.Serializable]
+    public sealed class ToolHitRequirement
+    {
+        public readonly ItemData Item;
+        public readonly int HitsToBreak;
+
+        public ToolHitRequirement(ItemData item, int hitsToBreak)
+        {
+            Item = item;
+            HitsToBreak = hitsToBreak <= 0 ? 1 : hitsToBreak;
+        }
+    }
+
     public sealed class DropGroup
     {
         public readonly List<TileBase> Tiles;
         public readonly List<Entry> Drops;
-        public readonly ItemData RequiredToolItem;
-        public readonly ToolKind RequiredToolKind;
+        public readonly List<ToolHitRequirement> RequiredTools;
 
-        public DropGroup(List<TileBase> tiles, List<Entry> drops, ItemData requiredToolItem, ToolKind requiredToolKind)
+        public DropGroup(List<TileBase> tiles, List<Entry> drops, List<ToolHitRequirement> requiredTools)
         {
             Tiles = tiles;
             Drops = drops;
-            RequiredToolItem = requiredToolItem;
-            RequiredToolKind = requiredToolKind;
+            RequiredTools = requiredTools;
         }
     }
 
@@ -116,4 +127,3 @@ public sealed class SoilService
 
     public void MarkDry(GridPos pos) => soilWorld.MarkDry(pos);
 }
-

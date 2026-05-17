@@ -1,47 +1,44 @@
-using UnityEngine;
-using UnityEngine.Tilemaps;
-using UnityEngine.EventSystems;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.Tilemaps;
+using UnityEngine.Serialization;
 
 public class TileInteractionController : MonoBehaviour
 {
 	[Header("Références Système")]
-	[SerializeField] private GameObject tilemapsRoot;
+	[SerializeField] private SceneContext sceneContext;
 	[SerializeField] private InventoryContainer playerInventory;
 	[SerializeField] private InventoryHotbarController inventoryManager;
-	[SerializeField] private SpriteRenderer playerSprite; // pour caler l'ordre d'affichage des drops
+	[SerializeField] private SpriteRenderer playerSprite;
+	[SerializeField] private GameObject collectiblePrefab;
 
-	[Header("Tool Range")]
-	[SerializeField] private float defaultToolUseRange = 1.5f;
+	[Header("Temps / Météo")]
 	[SerializeField] private TimeManager timeManager;
 	[SerializeField] private WeatherManager weatherManager;
-	[SerializeField] private GameObject collectiblePrefab; // Prefab pour les objets droppés
-	[SerializeField] private SceneContext sceneContext;
-	[SerializeField] private TilemapRegistry tilemapRegistry;
 
-	[Header("Sol / Autotiling (Grass + Dirt/Farmland)")]
-	[Tooltip("Tilemap Grass utilisée pour identifier les cases cliquées")]
-	[SerializeField] private Tilemap grassTilemap;
-	[Tooltip("Tilemap Dirt/Farmland sur laquelle on pose/enlève la terre ou la farmland")]
-	[SerializeField] private Tilemap overGrassTilemap;
-	[Tooltip("Tilemap pour les cultures")]
+	[Header("Portée Outils")]
+	[SerializeField] private float defaultToolUseRange = 1.5f;
+
+	[Header("Tilemap (Nouveau Système)")]
+	[Tooltip("Tilemap de sol sur laquelle on remplace la tuile cliquée selon l'outil.")]
+	[FormerlySerializedAs("pathTilemap")]
+	[SerializeField] private Tilemap soilTilemap;
+	[Tooltip("Tilemap pour les cultures.")]
 	[SerializeField] private Tilemap cropsTilemap;
-	[Tooltip("Tilemap pour le foliage (hautes herbes)")]
+	[Tooltip("Tilemap optionnelle pour supprimer du foliage quand on creuse.")]
 	[SerializeField] private Tilemap foliageTilemap;
 
-	[Header("Tiles de Base")]
-	[Tooltip("Tuile d'herbe de référence sur la tilemap Grass")]
-	[SerializeField] private TileBase grassTile;
-	[Tooltip("Tuile de terre (dirt) sur OverGrass")]
-	[SerializeField] private TileBase dirtTile;
-	[Tooltip("Tuile de soil/farmland sur OverGrass")]
-	[SerializeField] private TileBase soilTile;
-	[Tooltip("Tuile de soil mouillé sur OverGrass")]
-	[SerializeField] private TileBase wetSoilTile;
+	[Header("Tiles d'États Sol")]
+	[SerializeField] private SoilRuleTileSet soilTiles;
 
+	public Tilemap SoilTilemap => soilTilemap;
+	public SoilRuleTileSet SoilTiles => soilTiles;
 
-
+	[Header("Tile Breaking / Drops")]
+	[SerializeField] private GameObject tilemapsRoot;
+	[SerializeField] private TilemapRegistry tilemapRegistry;
 
 	[System.Serializable]
 	public class DropEntry
@@ -49,7 +46,7 @@ public class TileInteractionController : MonoBehaviour
 		public ItemData itemData;
 		public int minQuantity = 1;
 		public int maxQuantity = 1;
-		[Range(0f,1f)] public float dropChance = 1f; // probabilité par entrée
+		[Range(0f, 1f)] public float dropChance = 1f;
 	}
 
 	[System.Serializable]
@@ -57,10 +54,15 @@ public class TileInteractionController : MonoBehaviour
 	{
 		public List<TileBase> tiles = new List<TileBase>();
 		public List<DropEntry> drops = new List<DropEntry>();
-		[Tooltip("Outil requis (ItemData). Laisser vide si on utilise toolKind")]
-		public ItemData requiredToolItem;
-		[Tooltip("Type d'outil requis (enum). Utilisé si requiredToolItem est vide.")]
-		public ToolKind requiredToolKind = ToolKind.None;
+		[System.Serializable]
+		public sealed class RequiredTool
+		{
+			public ItemData itemData;
+			[Min(1)] public int hitsToBreak = 1;
+		}
+
+		[Tooltip("Liste d'items autorisés pour casser ce groupe, avec le nombre de coups requis. Vide = n'importe quel outil.")]
+		public List<RequiredTool> requiredToolItems = new List<RequiredTool>();
 	}
 
 	[Header("Configuration des Drops")]
@@ -68,20 +70,92 @@ public class TileInteractionController : MonoBehaviour
 
 	private CropService cropService;
 	private SoilService soilService;
-	private Dictionary<Vector3Int, PlantedCrop> plantedCrops = new Dictionary<Vector3Int, PlantedCrop>();
-	private int lastFarmingTickDay = -1;
 	private DropService dropService;
-	private List<Tilemap> targetTilemaps;
+	private readonly Dictionary<Vector3Int, PlantedCrop> plantedCrops = new Dictionary<Vector3Int, PlantedCrop>();
+	private readonly List<Tilemap> targetTilemaps = new List<Tilemap>();
+	private readonly Dictionary<HitKey, HitState> breakHits = new Dictionary<HitKey, HitState>();
+	private int lastFarmingTickDay = -1;
+
+	private Camera mainCamera;
+
+	private readonly struct HitKey
+	{
+		public readonly int TilemapId;
+		public readonly Vector3Int Cell;
+
+		public HitKey(int tilemapId, Vector3Int cell)
+		{
+			TilemapId = tilemapId;
+			Cell = cell;
+		}
+	}
+
+	private sealed class HitState
+	{
+		public TileBase Tile;
+		public int Hits;
+	}
 
 	private void Awake()
 	{
-		cropService = new CropService();
-		soilService = new SoilService();
+		mainCamera = Camera.main;
+
+		if (sceneContext == null)
+			sceneContext = FindObjectOfType<SceneContext>();
+
+		if (sceneContext == null)
+		{
+			Debug.LogError("TileInteractionController: Missing SceneContext in scene.", this);
+			enabled = false;
+			return;
+		}
+
+		playerInventory ??= sceneContext.GetRequired<InventoryContainer>(this, nameof(playerInventory));
+		inventoryManager ??= sceneContext.GetRequired<InventoryHotbarController>(this, nameof(inventoryManager));
+		timeManager ??= sceneContext.GetRequired<TimeManager>(this, nameof(timeManager));
+		weatherManager ??= sceneContext.GetRequired<WeatherManager>(this, nameof(weatherManager));
+
+		InitializePlayerSprite();
 		InitializeDropLookup();
 		InitializeTargetTilemaps();
-		InitializePlayerSprite();
-		InitializeTimeManager();
-		BootstrapSoilWorld();
+
+		cropService = new CropService();
+		soilService = new SoilService();
+
+		if (soilTilemap == null)
+			Debug.LogError("TileInteractionController: Missing Soil Tilemap reference.", this);
+		if (soilTiles == null || soilTiles.dugTile == null || soilTiles.tilledTile == null || soilTiles.tilledWetTile == null)
+			Debug.LogError("TileInteractionController: Missing Soil Tiles (dug/tilled/tilledWet). Assign a SoilRuleTileSet.", this);
+
+		BootstrapSoilWorldFromTilemap();
+
+		if (timeManager != null)
+		{
+			timeManager.OnSeasonStarted += HandleSeasonChanged;
+			timeManager.OnDayChanged += HandleDayChanged;
+		}
+
+		if (weatherManager != null)
+		{
+			weatherManager.OnWeatherChanged += HandleWeatherChanged;
+		}
+	}
+
+	// Intentionnellement aucune auto-binding ni fallback d'anciennes tiles :
+	// on passe par référence `pathTilemap` + `soilTiles` (RuleTiles) en Inspector.
+
+	private void OnDestroy()
+	{
+		if (timeManager != null)
+		{
+			timeManager.OnSeasonStarted -= HandleSeasonChanged;
+			timeManager.OnDayChanged -= HandleDayChanged;
+		}
+
+		if (weatherManager != null)
+		{
+			weatherManager.OnWeatherChanged -= HandleWeatherChanged;
+		}
 	}
 
 	public WorldStateSaveData CaptureWorldState()
@@ -92,15 +166,11 @@ public class TileInteractionController : MonoBehaviour
 		{
 			var soils = soilService.SnapshotSoils();
 			for (int i = 0; i < soils.Count; i++)
-			{
 				data.soils.Add(new WorldStateSaveData.Cell(soils[i].X, soils[i].Y));
-			}
 
 			var wet = soilService.SnapshotWetSoils();
 			for (int i = 0; i < wet.Count; i++)
-			{
 				data.wetSoils.Add(new WorldStateSaveData.Cell(wet[i].X, wet[i].Y));
-			}
 		}
 
 		foreach (var kvp in plantedCrops)
@@ -109,7 +179,7 @@ public class TileInteractionController : MonoBehaviour
 			var crop = kvp.Value;
 			if (crop == null) continue;
 
-			var c = new WorldStateSaveData.Crop
+			data.crops.Add(new WorldStateSaveData.Crop
 			{
 				x = cell.x,
 				y = cell.y,
@@ -121,8 +191,7 @@ public class TileInteractionController : MonoBehaviour
 				isPerennial = crop.isPerennial,
 				lastProductionDay = crop.lastProductionDay,
 				hasFruits = crop.hasFruits,
-			};
-			data.crops.Add(c);
+			});
 		}
 
 		return data;
@@ -134,105 +203,152 @@ public class TileInteractionController : MonoBehaviour
 
 		cropService = new CropService();
 		soilService = new SoilService();
-		plantedCrops = new Dictionary<Vector3Int, PlantedCrop>();
+		plantedCrops.Clear();
 		lastFarmingTickDay = -1;
 
-		ClearPlayerModifiedSoils();
+		ClearSoilTilemap();
 		if (cropsTilemap != null) cropsTilemap.ClearAllTiles();
 
-		if (overGrassTilemap != null)
+		if (soilTilemap != null && soilTiles != null)
 		{
 			for (int i = 0; i < data.soils.Count; i++)
 			{
-				var cell = data.soils[i];
-				var pos = new Vector3Int(cell.x, cell.y, 0);
-				overGrassTilemap.SetTile(pos, soilTile);
-				soilService.RegisterSoil(new GridPos(cell.x, cell.y), isWet: false);
-				RefreshNeighborsForSoilLayers(pos);
+				var c = data.soils[i];
+				var pos = new Vector3Int(c.x, c.y, 0);
+				if (soilTiles.tilledTile != null)
+					soilTilemap.SetTile(pos, soilTiles.tilledTile);
+				soilService.RegisterSoil(new GridPos(c.x, c.y), isWet: false);
+				RefreshAroundSingleMap(soilTilemap, pos);
 			}
 
 			for (int i = 0; i < data.wetSoils.Count; i++)
 			{
-				var cell = data.wetSoils[i];
-				var pos = new Vector3Int(cell.x, cell.y, 0);
-				overGrassTilemap.SetTile(pos, wetSoilTile);
-				soilService.RegisterSoil(new GridPos(cell.x, cell.y), isWet: true);
-				RefreshNeighborsForSoilLayers(pos);
+				var c = data.wetSoils[i];
+				var pos = new Vector3Int(c.x, c.y, 0);
+				if (soilTiles.tilledWetTile != null)
+					soilTilemap.SetTile(pos, soilTiles.tilledWetTile);
+				else if (soilTiles.tilledTile != null)
+					soilTilemap.SetTile(pos, soilTiles.tilledTile);
+				soilService.RegisterSoil(new GridPos(c.x, c.y), isWet: true);
+				RefreshAroundSingleMap(soilTilemap, pos);
 			}
 		}
 
-		if (data.crops != null)
+		for (int i = 0; i < data.crops.Count; i++)
 		{
-			for (int i = 0; i < data.crops.Count; i++)
+			var c = data.crops[i];
+			if (c == null) continue;
+
+			var seed = resolveSeed != null ? resolveSeed(c.seedName) : null;
+			if (seed == null) continue;
+
+			var cell = new Vector3Int(c.x, c.y, 0);
+			var crop = new PlantedCrop
 			{
-				var c = data.crops[i];
-				var seed = resolveSeed != null ? resolveSeed(c.seedName) : null;
-				if (seed == null) continue;
+				originalSeedData = seed,
+				seedInstance = new SeedInstance(seed),
+				currentStage = c.currentStage,
+				dayPlanted = c.dayPlanted,
+				lastWateredDay = c.lastWateredDay,
+				isWithered = c.isWithered,
+				isPerennial = c.isPerennial,
+				lastProductionDay = c.lastProductionDay,
+				hasFruits = c.hasFruits,
+			};
 
-				var cell = new Vector3Int(c.x, c.y, 0);
-				var crop = new PlantedCrop
-				{
-					originalSeedData = seed,
-					seedInstance = new SeedInstance(seed),
-					currentStage = c.currentStage,
-					dayPlanted = c.dayPlanted,
-					lastWateredDay = c.lastWateredDay,
-					isWithered = c.isWithered,
-					isPerennial = c.isPerennial,
-					lastProductionDay = c.lastProductionDay,
-					hasFruits = c.hasFruits,
-				};
+			plantedCrops[cell] = crop;
+			cropService.RestoreCrop(
+				new GridPos(c.x, c.y),
+				new CropBlueprint(
+					growthStagesCount: crop.seedInstance.growthSprites != null ? crop.seedInstance.growthSprites.Length : 0,
+					growthSeasonId: (int)crop.seedInstance.growthSeason,
+					witherTimeDays: crop.seedInstance.witherTime,
+					isPerennial: crop.isPerennial,
+					productionIntervalDays: crop.seedInstance.productionInterval),
+				currentStage: c.currentStage,
+				dayPlanted: c.dayPlanted,
+				lastWateredDay: c.lastWateredDay,
+				isWithered: c.isWithered,
+				lastProductionDay: c.lastProductionDay,
+				hasFruits: c.hasFruits);
 
-				plantedCrops[cell] = crop;
-
-				var blueprint = new CropBlueprint(
-					growthStagesCount: seed.growthSprites != null ? seed.growthSprites.Length : 0,
-					growthSeasonId: (int)seed.growthSeason,
-					witherTimeDays: seed.witherTime,
-					isPerennial: seed.isPerennial,
-					productionIntervalDays: seed.productionInterval);
-
-				cropService.RestoreCrop(
-					new GridPos(c.x, c.y),
-					blueprint,
-					currentStage: c.currentStage,
-					dayPlanted: c.dayPlanted,
-					lastWateredDay: c.lastWateredDay,
-					isWithered: c.isWithered,
-					lastProductionDay: c.lastProductionDay,
-					hasFruits: c.hasFruits);
-
-				UpdateCropSprite(cell, crop);
-			}
+			UpdateCropSprite(cell, crop);
 		}
 	}
 
-	private void ClearPlayerModifiedSoils()
+	private void Update()
 	{
-		if (overGrassTilemap == null) return;
-
-		overGrassTilemap.CompressBounds();
-		var bounds = overGrassTilemap.cellBounds;
-		for (int x = bounds.xMin; x < bounds.xMax; x++)
+		if (timeManager != null)
 		{
-			for (int y = bounds.yMin; y < bounds.yMax; y++)
+			int day = timeManager.GetCurrentDay();
+			if (day != lastFarmingTickDay)
 			{
-				var cell = new Vector3Int(x, y, 0);
-				var tile = overGrassTilemap.GetTile(cell);
-				if (tile == null) continue;
-
-				if (IsDirt(tile) || IsSoil(tile) || IsWetSoil(tile))
-				{
-					overGrassTilemap.SetTile(cell, null);
-				}
+				lastFarmingTickDay = day;
+				TickFarmingWorld(day);
 			}
 		}
+
+		HandleMouseInput();
 	}
 
-	private void BootstrapSoilWorld()
+	private void HandleMouseInput()
 	{
-		if (soilService == null || overGrassTilemap == null) return;
-		soilService.BootstrapFromOverTilemap(overGrassTilemap, t => IsSoil(t) || IsWetSoil(t), IsWetSoil);
+		if (!Input.GetMouseButtonDown(0))
+			return;
+
+		if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+			return;
+
+		if (soilTilemap == null || soilTiles == null)
+			return;
+
+		if (mainCamera == null) mainCamera = Camera.main;
+		if (mainCamera == null) return;
+
+		Vector3 world = mainCamera.ScreenToWorldPoint(Input.mousePosition);
+		world.z = 0f;
+
+		Vector3Int cell = soilTilemap.WorldToCell(world);
+
+		float range = GetSelectedUseRange();
+		if (!IsWithinUseRangeCell(cell, range))
+			return;
+
+		if (TryHandlePlantingOrHarvest(cell)) return;
+		if (TryHandleWatering(cell)) return;
+		if (TryHandleSoilTools(cell)) return;
+
+		HandleTileBreaking(world);
+	}
+
+	private bool IsWithinUseRangeCell(Vector3Int cell, float range)
+	{
+		if (range <= 0f) return true;
+		var playerPos = GetPlayerWorldPosition();
+		if (soilTilemap == null) return true;
+		return Vector2.Distance(playerPos, soilTilemap.GetCellCenterWorld(cell)) <= range;
+	}
+
+	private float GetSelectedUseRange()
+	{
+		var item = GetSelectedItemData();
+		if (item is ToolData toolData) return toolData.useRange > 0f ? toolData.useRange : defaultToolUseRange;
+		if (item is WateringCanData wateringCanData) return wateringCanData.useRange > 0f ? wateringCanData.useRange : defaultToolUseRange;
+		return defaultToolUseRange;
+	}
+
+	private Vector3 GetPlayerWorldPosition()
+	{
+		if (playerSprite != null) return playerSprite.transform.position;
+		var player = sceneContext != null ? sceneContext.Get<PlayerMovementController>() : null;
+		return player != null ? player.transform.position : transform.position;
+	}
+
+	private void InitializePlayerSprite()
+	{
+		if (playerSprite != null) return;
+		var player = sceneContext != null ? sceneContext.Get<PlayerMovementController>() : null;
+		if (player != null) playerSprite = player.GetComponent<SpriteRenderer>();
 	}
 
 	private void InitializeDropLookup()
@@ -252,7 +368,8 @@ public class TileInteractionController : MonoBehaviour
 				drops.Add(new DropService.Entry(entry.itemData, entry.minQuantity, entry.maxQuantity, entry.dropChance));
 			}
 
-			var dropGroup = new DropService.DropGroup(group.tiles, drops, group.requiredToolItem, group.requiredToolKind);
+			var required = BuildToolRequirements(group.requiredToolItems);
+			var dropGroup = new DropService.DropGroup(group.tiles, drops, required);
 			for (int t = 0; t < group.tiles.Count; t++)
 			{
 				var tile = group.tiles[t];
@@ -263,341 +380,73 @@ public class TileInteractionController : MonoBehaviour
 		dropService = new DropService(lookup);
 	}
 
+	private static List<DropService.ToolHitRequirement> BuildToolRequirements(List<TileDropGroup.RequiredTool> requiredToolItems)
+	{
+		if (requiredToolItems == null || requiredToolItems.Count == 0) return null;
+
+		var list = new List<DropService.ToolHitRequirement>(requiredToolItems.Count);
+		for (int i = 0; i < requiredToolItems.Count; i++)
+		{
+			var r = requiredToolItems[i];
+			if (r == null || r.itemData == null) continue;
+			int hits = r.hitsToBreak <= 0 ? 1 : r.hitsToBreak;
+			list.Add(new DropService.ToolHitRequirement(r.itemData, hits));
+		}
+		return list.Count > 0 ? list : null;
+	}
+
 	private void InitializeTargetTilemaps()
 	{
-		// Collecter les tilemaps cibles sous la racine
-		targetTilemaps = new List<Tilemap>();
+		targetTilemaps.Clear();
 
 		if (tilemapsRoot == null && tilemapRegistry != null)
-		{
 			tilemapsRoot = tilemapRegistry.TilemapsRoot;
-		}
 
 		if (tilemapRegistry != null && tilemapRegistry.Tilemaps != null && tilemapRegistry.Tilemaps.Length > 0)
 		{
 			targetTilemaps.AddRange(tilemapRegistry.Tilemaps);
 			return;
 		}
+
 		if (tilemapsRoot != null)
 		{
 			tilemapsRoot.GetComponentsInChildren(true, targetTilemaps);
 		}
-		else
-		{
-			// Fallback: toutes les tilemaps de la scène
-			Debug.LogError("TileInteractionController: tilemapsRoot or TilemapRegistry is required (no more scene-wide search fallback).", this);
-		}
+
+		// Éviter de casser/modifier par erreur les tilemaps "système" de ce contrôleur.
+		targetTilemaps.Remove(soilTilemap);
+		targetTilemaps.Remove(cropsTilemap);
+		targetTilemaps.Remove(foliageTilemap);
 	}
 
-	private void InitializePlayerSprite()
+	private void BootstrapSoilWorldFromTilemap()
 	{
-		if (playerSprite == null)
-		{
-			var player = sceneContext != null ? sceneContext.Get<PlayerMovementController>() : null;
-			if (player != null)
-			{
-				playerSprite = player.GetComponent<SpriteRenderer>();
-			}
-		}
-	}
-
-	private void InitializeTimeManager()
-	{
-		if (sceneContext == null)
-		{
-			sceneContext = FindObjectOfType<SceneContext>();
-		}
-
-		if (sceneContext == null)
-		{
-			Debug.LogError("TileInteractionController: Missing SceneContext in scene.", this);
-			enabled = false;
+		if (soilService == null || soilTilemap == null || soilTiles == null)
 			return;
-		}
 
-		if (timeManager == null)
-		{
-			timeManager = sceneContext.GetRequired<TimeManager>(this, nameof(timeManager));
-		}
-		
-		if (weatherManager == null)
-		{
-			weatherManager = sceneContext.GetRequired<WeatherManager>(this, nameof(weatherManager));
-		}
-		
-		// S'abonner aux changements de saison et de jour
-		if (timeManager != null)
-		{
-			timeManager.OnSeasonStarted += HandleSeasonChanged;
-			timeManager.OnDayChanged += HandleDayChanged;
-		}
-		
-		// S'abonner aux changements de météo pour arroser immédiatement
-		if (weatherManager != null)
-		{
-			weatherManager.OnWeatherChanged += HandleWeatherChanged;
-		}
+		soilService.BootstrapFromOverTilemap(
+			soilTilemap,
+			t => IsTilled(t) || IsWet(t),
+			IsWet);
 	}
-	
-	private void OnDestroy()
-	{
-		// Se désabonner des événements
-		if (timeManager != null)
-		{
-			timeManager.OnSeasonStarted -= HandleSeasonChanged;
-			timeManager.OnDayChanged -= HandleDayChanged;
-		}
-		
-		if (weatherManager != null)
-		{
-			weatherManager.OnWeatherChanged -= HandleWeatherChanged;
-		}
-	}
-	
-	private void HandleSeasonChanged(int seasonId, string seasonName)
-	{
-		// Vérifier toutes les cultures et les faire flétrir si elles ne sont pas adaptées à la saison
-		foreach (var kvp in plantedCrops)
-		{
-			Vector3Int cell = kvp.Key;
-			PlantedCrop crop = kvp.Value;
-			
-			// Si la culture n'est pas adaptée à la saison actuelle, la faire flétrir immédiatement
-			if ((int)crop.seedInstance.growthSeason != seasonId && !crop.isWithered)
-			{
-				crop.isWithered = true;
-				UpdateCropSprite(cell, crop);
-			}
-		}
-	}
-	
-	private void HandleWeatherChanged(WeatherType weather)
-	{
-		// Arroser immédiatement tous les sols quand il commence à pleuvoir
-		if (weather == WeatherType.Rainy || weather == WeatherType.Stormy)
-		{
-			WaterAllSoils();
-		}
-		else
-		{
-			// Sécher tous les sols mouillés quand il arrête de pleuvoir
-			DryAllWetSoils();
-		}
-	}
-	
-	private void HandleDayChanged(int day)
-	{
-		// Sécher tous les sols mouillés au changement de jour (fin de journée)
-		DryAllWetSoils();
-	}
-	
-	private void WaterAllSoils()
-	{
-		if (overGrassTilemap == null || timeManager == null) return;
-		
-		int currentDay = timeManager.GetCurrentDay();
-		cropService?.WaterAllCrops(currentDay);
 
-		if (soilService != null)
-		{
-			var soils = soilService.SnapshotSoils();
-			for (int i = 0; i < soils.Count; i++)
-			{
-				var p = soils[i];
-				Vector3Int cell = new Vector3Int(p.X, p.Y, 0);
-				TileBase tile = overGrassTilemap.GetTile(cell);
-				if (!IsSoil(tile)) continue;
+	private void ClearSoilTilemap()
+	{
+		if (soilTilemap == null) return;
 
-				overGrassTilemap.SetTile(cell, wetSoilTile);
-				soilService.MarkWet(p);
-
-				if (plantedCrops.TryGetValue(cell, out var crop) && crop != null)
-				{
-					crop.lastWateredDay = currentDay;
-				}
-			}
-			return;
-		}
-		
-		// Parcourir toutes les tiles de la tilemap
-		BoundsInt bounds = overGrassTilemap.cellBounds;
+		soilTilemap.CompressBounds();
+		var bounds = soilTilemap.cellBounds;
 		for (int x = bounds.xMin; x < bounds.xMax; x++)
 		{
 			for (int y = bounds.yMin; y < bounds.yMax; y++)
 			{
-				Vector3Int cell = new Vector3Int(x, y, 0);
-				TileBase tile = overGrassTilemap.GetTile(cell);
-				
-				// Si c'est un sol normal, le transformer en sol mouillé
-				if (IsSoil(tile))
-				{
-					overGrassTilemap.SetTile(cell, wetSoilTile);
-					
-					// Mettre à jour la date d'arrosage des cultures
-					if (plantedCrops.ContainsKey(cell))
-					{
-						PlantedCrop crop = plantedCrops[cell];
-						crop.lastWateredDay = currentDay;
-					}
-				}
+				var cell = new Vector3Int(x, y, 0);
+				var t = soilTilemap.GetTile(cell);
+				if (t == null) continue;
+				if (IsDug(t) || IsTilled(t) || IsWet(t))
+					soilTilemap.SetTile(cell, null);
 			}
 		}
-	}
-	
-	private void DryAllWetSoils()
-	{
-		if (overGrassTilemap == null) return;
-
-		if (soilService != null)
-		{
-			var wet = soilService.SnapshotWetSoils();
-			for (int i = 0; i < wet.Count; i++)
-			{
-				var p = wet[i];
-				Vector3Int cell = new Vector3Int(p.X, p.Y, 0);
-				TileBase tile = overGrassTilemap.GetTile(cell);
-				if (!IsWetSoil(tile)) continue;
-
-				overGrassTilemap.SetTile(cell, soilTile);
-				soilService.MarkDry(p);
-			}
-			return;
-		}
-		
-		// Parcourir toutes les tiles de la tilemap
-		BoundsInt bounds = overGrassTilemap.cellBounds;
-		for (int x = bounds.xMin; x < bounds.xMax; x++)
-		{
-			for (int y = bounds.yMin; y < bounds.yMax; y++)
-			{
-				Vector3Int cell = new Vector3Int(x, y, 0);
-				TileBase tile = overGrassTilemap.GetTile(cell);
-				
-				// Si c'est un sol mouillé, le transformer en sol normal
-				if (IsWetSoil(tile))
-				{
-					overGrassTilemap.SetTile(cell, soilTile);
-					soilService?.RegisterSoil(new GridPos(cell.x, cell.y), isWet: false);
-				}
-			}
-		}
-	}
-
-	private void Update()
-	{
-		if (timeManager != null)
-		{
-			int day = timeManager.GetCurrentDay();
-			if (day != lastFarmingTickDay)
-			{
-				lastFarmingTickDay = day;
-				TickFarmingWorld(day);
-			}
-		}
-		HandleMouseInput();
-	}
-
-	private void HandleMouseInput()
-	{
-		if (targetTilemaps == null || targetTilemaps.Count == 0 || !Input.GetMouseButtonDown(0))
-			return;
-
-		// Éviter les clics sur l'UI
-		if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-			return;
-
-		Vector3 world = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-		world.z = 0f;
-
-		// Traiter les interactions par ordre de priorité
-		if (TryHandlePlantingAction(world)) return;
-		if (TryHandleWateringAction(world)) return;
-		if (TryHandleSoilToolAction(world)) return;
-		
-		// Fallback: logique de casse et drop configurés
-		HandleTileBreaking(world);
-	}
-
-	private float GetSelectedUseRange()
-	{
-		var item = GetSelectedItemData();
-		if (item is ToolData toolData) return toolData.useRange > 0f ? toolData.useRange : defaultToolUseRange;
-		if (item is WateringCanData wateringCanData) return wateringCanData.useRange > 0f ? wateringCanData.useRange : defaultToolUseRange;
-		return defaultToolUseRange;
-	}
-
-	private Vector3 GetPlayerWorldPosition()
-	{
-		if (playerSprite != null) return playerSprite.transform.position;
-		var player = sceneContext != null ? sceneContext.Get<PlayerMovementController>() : null;
-		return player != null ? player.transform.position : transform.position;
-	}
-
-	private bool IsWithinUseRange(Tilemap tm, Vector3Int cell, float range)
-	{
-		if (range <= 0f) return true;
-		if (tm == null) return true;
-
-		var playerPos = GetPlayerWorldPosition();
-		var targetPos = tm.GetCellCenterWorld(cell);
-		return Vector2.Distance(playerPos, targetPos) <= range;
-	}
-
-	private void HandleTileBreaking(Vector3 world)
-	{
-		for (int i = 0; i < targetTilemaps.Count; i++)
-		{
-			var tm = targetTilemaps[i];
-			if (tm == null) continue;
-			Vector3Int cell = tm.WorldToCell(world);
-			TileBase clickedTile = tm.GetTile(cell);
-			if (clickedTile == null) continue;
-
-			if (!IsWithinUseRange(tm, cell, GetSelectedUseRange()))
-			{
-				return;
-			}
-			if (dropService == null || !dropService.TryGetGroup(clickedTile, out var group)) continue;
-
-			// Vérifier le bon outil selon le groupe ciblé
-			if (!IsToolSelected(group.RequiredToolItem, group.RequiredToolKind)) 
-			{
-				return;
-			}
-			BreakSingle(tm, cell);
-			break; // n'agir que sur la première tilemap correspondante
-		}
-	}
-
-	private ToolKind GetSelectedToolKind()
-	{
-		if (playerInventory == null || inventoryManager == null)
-			return ToolKind.None;
-		
-		int slot = inventoryManager.GetCurrentHotbarSlot();
-		ItemStack stack = playerInventory.GetItemInSlot(slot);
-		if (stack == null || stack.itemData == null)
-			return ToolKind.None;
-		
-		// Utiliser la factory pour déterminer le type d'outil
-		return ItemInstanceFactory.GetToolKind(stack.itemData);
-	}
-
-	private ItemData GetSelectedItemData()
-	{
-		if (playerInventory == null || inventoryManager == null)
-			return null;
-		int slot = inventoryManager.GetCurrentHotbarSlot();
-		ItemStack stack = playerInventory.GetItemInSlot(slot);
-		return stack?.itemData;
-	}
-
-	private ItemStack GetSelectedItemStack()
-	{
-		if (playerInventory == null || inventoryManager == null)
-			return null;
-		int slot = inventoryManager.GetCurrentHotbarSlot();
-		return playerInventory.GetItemInSlot(slot);
 	}
 
 	private void TickFarmingWorld(int currentDay)
@@ -624,33 +473,15 @@ public class TileInteractionController : MonoBehaviour
 		}
 	}
 
-	private void UpdateCrops()
+	private void HandleSeasonChanged(int seasonId, string _)
 	{
-		if (plantedCrops == null || plantedCrops.Count == 0)
-			return;
-
-		List<Vector3Int> cropsToRemove = new List<Vector3Int>();
-
 		foreach (var kvp in plantedCrops)
 		{
-			Vector3Int cell = kvp.Key;
-			PlantedCrop crop = kvp.Value;
+			var cell = kvp.Key;
+			var crop = kvp.Value;
+			if (crop == null || crop.seedInstance == null) continue;
 
-			// Vérifier si la culture doit grandir
-			if (ShouldGrow(crop))
-			{
-				crop.currentStage++;
-				UpdateCropSprite(cell, crop);
-			}
-
-			// Pour les cultures pérennes, vérifier la production
-			if (crop.isPerennial && IsMature(crop))
-			{
-				UpdatePerennialProduction(cell, crop);
-			}
-
-			// Vérifier si la culture doit flétrir (seulement pour la saison courante)
-			if (ShouldWither(crop))
+			if ((int)crop.seedInstance.growthSeason != seasonId && !crop.isWithered)
 			{
 				crop.isWithered = true;
 				UpdateCropSprite(cell, crop);
@@ -658,422 +489,334 @@ public class TileInteractionController : MonoBehaviour
 		}
 	}
 
-	private bool ShouldGrow(PlantedCrop crop)
+	private void HandleWeatherChanged(WeatherType weather)
 	{
-		if (timeManager == null || crop == null || crop.seedInstance == null || crop.seedInstance.growthSprites == null) return false;
-		return FarmingCropLogic.ShouldGrow(
-			crop.isWithered,
-			crop.currentStage,
-			crop.seedInstance.growthSprites.Length,
-			timeManager.GetCurrentDay(),
-			crop.dayPlanted);
-
-		#if false
-		if (crop.isWithered || crop.currentStage >= crop.seedInstance.growthSprites.Length - 1)
-			return false;
-
-		if (timeManager == null) return false;
-
-		int currentDay = timeManager.GetCurrentDay();
-		int daysSincePlanted = currentDay - crop.dayPlanted;
-		
-		// Chaque sprite = 1 jour, donc chaque étape = 1 jour
-		// L'étape suivante est atteinte après (currentStage + 1) jours
-		int requiredDays = crop.currentStage + 1;
-
-		return daysSincePlanted >= requiredDays;
-		#endif
+		if (weather == WeatherType.Rainy || weather == WeatherType.Stormy)
+			WaterAllSoils();
+		else
+			DryAllWetSoils();
 	}
 
-	private bool ShouldWither(PlantedCrop crop)
+	private void HandleDayChanged(int _)
 	{
-		if (timeManager == null || crop == null || crop.seedInstance == null || crop.seedInstance.growthSprites == null) return false;
-		int currentSeasonId = timeManager.GetCurrentSeasonId();
-		bool isMature = FarmingCropLogic.IsMature(crop.currentStage, crop.seedInstance.growthSprites.Length);
-		bool isInSeason = (int)crop.seedInstance.growthSeason == currentSeasonId;
-		return FarmingCropLogic.ShouldWither(
-			crop.isWithered,
-			isInSeason,
-			isMature,
-			timeManager.GetCurrentDay(),
-			crop.lastWateredDay,
-			crop.seedInstance.witherTime);
-
-		#if false
-		if (crop.isWithered)
-			return false;
-
-		if (timeManager == null) return false;
-
-		int currentDay = timeManager.GetCurrentDay();
-		int currentSeasonId = timeManager.GetCurrentSeasonId();
-		
-		// Si la culture n'est pas dans sa saison, elle ne peut pas flétrir par manque d'eau
-		// (elle flétrit automatiquement au changement de saison)
-		if ((int)crop.seedInstance.growthSeason != currentSeasonId)
-			return false;
-
-		// Ne peut flétrir qu'après être devenue récoltable
-		if (crop.currentStage < crop.seedInstance.growthSprites.Length - 1)
-			return false;
-
-		// Vérifier si la culture n'a pas été arrosée depuis trop longtemps
-		int daysSinceLastWatered = currentDay - crop.lastWateredDay;
-		return daysSinceLastWatered >= crop.seedInstance.witherTime;
-		#endif
+		DryAllWetSoils();
 	}
 
-	private bool IsMature(PlantedCrop crop)
+	private void WaterAllSoils()
 	{
-		// Une culture est mature quand elle atteint la dernière étape
+		if (soilTilemap == null || soilTiles == null || timeManager == null || soilService == null) return;
+
+		int currentDay = timeManager.GetCurrentDay();
+		cropService?.WaterAllCrops(currentDay);
+
+		var soils = soilService.SnapshotSoils();
+		for (int i = 0; i < soils.Count; i++)
+		{
+			var p = soils[i];
+			var cell = new Vector3Int(p.X, p.Y, 0);
+			var t = soilTilemap.GetTile(cell);
+			if (!IsTilled(t)) continue;
+
+			if (soilTiles.tilledWetTile != null)
+				soilTilemap.SetTile(cell, soilTiles.tilledWetTile);
+
+			soilService.MarkWet(p);
+
+			if (plantedCrops.TryGetValue(cell, out var crop) && crop != null)
+				crop.lastWateredDay = currentDay;
+
+			RefreshAroundSingleMap(soilTilemap, cell);
+		}
+	}
+
+	private void DryAllWetSoils()
+	{
+		if (soilTilemap == null || soilTiles == null || soilService == null) return;
+
+		var wet = soilService.SnapshotWetSoils();
+		for (int i = 0; i < wet.Count; i++)
+		{
+			var p = wet[i];
+			var cell = new Vector3Int(p.X, p.Y, 0);
+			var t = soilTilemap.GetTile(cell);
+			if (!IsWet(t)) continue;
+
+			if (soilTiles.tilledTile != null)
+				soilTilemap.SetTile(cell, soilTiles.tilledTile);
+
+			soilService.MarkDry(p);
+			RefreshAroundSingleMap(soilTilemap, cell);
+		}
+	}
+
+	private bool TryHandlePlantingOrHarvest(Vector3Int cell)
+	{
+		if (cropsTilemap == null)
+			return false;
+
+		if (plantedCrops.TryGetValue(cell, out var existing) && existing != null)
+		{
+			if (CanHarvest(existing))
+				return TryHarvestCrop(cell, existing);
+			return false;
+		}
+
+		var selected = GetSelectedItemData();
+		if (selected is SeedData seedData)
+			return TryPlantSeed(cell, seedData);
+
+		return false;
+	}
+
+	private static bool CanHarvest(PlantedCrop crop)
+	{
 		if (crop == null || crop.seedInstance == null || crop.seedInstance.growthSprites == null) return false;
-		return FarmingCropLogic.IsMature(crop.currentStage, crop.seedInstance.growthSprites.Length);
+
+		if (crop.isPerennial)
+			return crop.hasFruits || crop.isWithered;
+
+		return crop.currentStage >= crop.seedInstance.growthSprites.Length - 1 || crop.isWithered;
 	}
 
-	private void UpdatePerennialProduction(Vector3Int cell, PlantedCrop crop)
+	private bool TryHarvestCrop(Vector3Int cell, PlantedCrop crop)
 	{
-		if (crop == null || crop.seedInstance == null) return;
-		if (FarmingCropLogic.TryUpdatePerennialProduction(
-				timeManager != null ? timeManager.GetCurrentDay() : 0,
-				crop.seedInstance.productionInterval,
-				ref crop.lastProductionDay,
-				ref crop.hasFruits))
+		if (crop == null || crop.seedInstance == null) return false;
+
+		if (crop.isPerennial && crop.hasFruits && !crop.isWithered)
 		{
+			if (crop.seedInstance.harvestProduct != null)
+			{
+				Vector3 dropPos = cropsTilemap.GetCellCenterWorld(cell);
+				for (int i = 0; i < crop.seedInstance.harvestQuantity; i++)
+					SpawnDrop(crop.seedInstance.harvestProduct, dropPos);
+			}
+
+			crop.hasFruits = false;
 			UpdateCropSprite(cell, crop);
+			return true;
 		}
 
-		#if false
-		if (timeManager == null) return;
+		cropsTilemap.SetTile(cell, null);
 
-		int currentDay = timeManager.GetCurrentDay();
-		
-		// Si c'est la première fois qu'on vérifie la production
-		if (crop.lastProductionDay == 0)
+		if (!crop.isWithered && crop.seedInstance.harvestProduct != null)
 		{
-			crop.lastProductionDay = currentDay;
-			crop.hasFruits = true;
-			UpdateCropSprite(cell, crop);
-			return;
+			Vector3 dropPos = cropsTilemap.GetCellCenterWorld(cell);
+			for (int i = 0; i < crop.seedInstance.harvestQuantity; i++)
+				SpawnDrop(crop.seedInstance.harvestProduct, dropPos);
 		}
 
-		// Vérifier si assez de temps s'est écoulé pour une nouvelle production
-		int daysSinceLastProduction = currentDay - crop.lastProductionDay;
-		if (daysSinceLastProduction >= crop.seedInstance.productionInterval && !crop.hasFruits)
+		plantedCrops.Remove(cell);
+		cropService?.Remove(new GridPos(cell.x, cell.y));
+		return true;
+	}
+
+	private bool TryPlantSeed(Vector3Int cell, SeedData seedData)
+	{
+		if (seedData == null || soilTilemap == null || soilTiles == null || timeManager == null)
+			return false;
+
+		if (plantedCrops.ContainsKey(cell))
+			return false;
+
+		var soilAtCell = soilTilemap.GetTile(cell);
+		bool plantable = IsTilled(soilAtCell) || IsWet(soilAtCell);
+		if (!plantable) return false;
+
+		if (!seedData.CanPlant(timeManager.GetCurrentSeasonId()))
+			return false;
+
+		if (seedData.growthSprites == null || seedData.growthSprites.Length == 0)
+			return false;
+
+		int day = timeManager.GetCurrentDay();
+
+		var crop = new PlantedCrop
 		{
-			crop.lastProductionDay = currentDay;
-			crop.hasFruits = true;
-			UpdateCropSprite(cell, crop);
-		}
-		#endif
+			originalSeedData = seedData,
+			seedInstance = new SeedInstance(seedData),
+			currentStage = 0,
+			dayPlanted = day,
+			isWithered = false,
+			isPerennial = seedData.isPerennial,
+			lastProductionDay = 0,
+			hasFruits = false,
+			lastWateredDay = day
+		};
+
+		plantedCrops[cell] = crop;
+		cropService.Plant(
+			new GridPos(cell.x, cell.y),
+			new CropBlueprint(
+				growthStagesCount: crop.seedInstance.growthSprites != null ? crop.seedInstance.growthSprites.Length : 0,
+				growthSeasonId: (int)crop.seedInstance.growthSeason,
+				witherTimeDays: crop.seedInstance.witherTime,
+				isPerennial: crop.isPerennial,
+				productionIntervalDays: crop.seedInstance.productionInterval),
+			currentDay: day);
+
+		cropsTilemap.SetTile(cell, CreateCropTile(crop.seedInstance.growthSprites[0]));
+		playerInventory.RemoveItem(seedData, 1);
+		return true;
 	}
 
 	private void UpdateCropSprite(Vector3Int cell, PlantedCrop crop)
 	{
-		if (cropsTilemap == null || crop.seedInstance.growthSprites == null)
+		if (cropsTilemap == null || crop == null || crop.seedInstance == null || crop.seedInstance.growthSprites == null)
 			return;
 
 		Sprite spriteToUse;
-		
-		// Si la culture est flétrie, utiliser le sprite flétri
+
 		if (crop.isWithered && crop.seedInstance.witheredSprite != null)
 		{
 			spriteToUse = crop.seedInstance.witheredSprite;
 		}
-		// Pour les cultures pérennes avec fruits, utiliser le sprite avec fruits
 		else if (crop.isPerennial && crop.hasFruits && crop.seedInstance.fruitSprite != null)
 		{
 			spriteToUse = crop.seedInstance.fruitSprite;
 		}
 		else
 		{
-			// Pour les cultures pérennes sans fruits, utiliser l'étape précédente (mature sans fruits)
 			if (crop.isPerennial && !crop.hasFruits)
 			{
-				// Utiliser l'étape précédente (étape mature sans fruits)
 				int spriteIndex = crop.currentStage - 1;
 				if (spriteIndex >= 0 && spriteIndex < crop.seedInstance.growthSprites.Length)
-				{
 					spriteToUse = crop.seedInstance.growthSprites[spriteIndex];
-				}
 				else
-				{
 					spriteToUse = crop.seedInstance.growthSprites[crop.seedInstance.growthSprites.Length - 1];
-				}
 			}
 			else
 			{
-				// Sprite normal selon l'étape
 				if (crop.currentStage < crop.seedInstance.growthSprites.Length)
-				{
 					spriteToUse = crop.seedInstance.growthSprites[crop.currentStage];
-				}
 				else
+					return;
+			}
+		}
+
+		cropsTilemap.SetTile(cell, CreateCropTile(spriteToUse));
+	}
+
+	private static TileBase CreateCropTile(Sprite sprite)
+	{
+		var tile = ScriptableObject.CreateInstance<Tile>();
+		tile.sprite = sprite;
+		return tile;
+	}
+
+	private bool TryHandleWatering(Vector3Int cell)
+	{
+		if (soilTilemap == null || soilTiles == null) return false;
+
+		if (GetSelectedToolKind() != ToolKind.WateringCan)
+			return false;
+
+		var selectedItemStack = GetSelectedItemStack();
+		if (selectedItemStack == null || selectedItemStack.itemData is not WateringCanData)
+			return false;
+
+		var wateringCan = selectedItemStack.GetItemInstance() as WateringCanInstance;
+		if (wateringCan == null)
+			return false;
+
+		TileBase pathTile = soilTilemap.GetTile(cell);
+
+		// Refill si on clique sur une source d'eau (peut être sur d'autres tilemaps que Path).
+		bool isWater = IsWaterTile(pathTile, wateringCan);
+		if (!isWater && targetTilemaps != null)
+		{
+			for (int i = 0; i < targetTilemaps.Count; i++)
+			{
+				var tm = targetTilemaps[i];
+				if (tm == null) continue;
+				if (IsWaterTile(tm.GetTile(cell), wateringCan))
 				{
-					return; // Index invalide
+					isWater = true;
+					break;
 				}
 			}
 		}
-
-		// Mettre à jour la tile sur la cropsTilemap
-		TileBase cropTile = CreateCropTile(spriteToUse);
-		cropsTilemap.SetTile(cell, cropTile);
-	}
-
-	private bool TryHandlePlantingAction(Vector3 world)
-	{
-		Vector3Int cell = grassTilemap.WorldToCell(world);
-		
-		// Vérifier s'il y a une culture à récolter à cette position
-		if (plantedCrops.ContainsKey(cell))
+		if (isWater)
 		{
-			PlantedCrop crop = plantedCrops[cell];
-			if (CanHarvest(crop))
+			if (wateringCan.currentCapacity < wateringCan.maxCapacity)
 			{
-				return TryHarvestCrop(cell, crop);
+				wateringCan.Refill();
+				return true;
 			}
-		}
-		
-		// Vérifier si c'est une graine
-		var selectedItemData = GetSelectedItemData();
-		if (selectedItemData is SeedData seedData)
-		{
-			return TryPlantSeed(world, seedData);
-		}
-		
-		return false;
-	}
-
-	private bool CanHarvest(PlantedCrop crop)
-	{
-		// Pour les cultures pérennes, peut récolter si elle a des fruits OU si elle est flétrie
-		if (crop.isPerennial)
-		{
-			return crop.hasFruits || crop.isWithered;
-		}
-		
-		// Pour les cultures normales, peut récolter si la culture est mûre (dernière étape) ou flétrie
-		return crop.currentStage >= crop.seedInstance.growthSprites.Length - 1 || crop.isWithered;
-	}
-
-	private bool TryHarvestCrop(Vector3Int cell, PlantedCrop crop)
-	{
-		// Pour les cultures pérennes avec fruits, juste récolter les fruits
-		if (crop.isPerennial && crop.hasFruits && !crop.isWithered)
-		{
-			// Dropper les produits de récolte
-			if (crop.seedInstance.harvestProduct != null)
-			{
-				Vector3 dropPos = cropsTilemap.CellToWorld(cell) + new Vector3(0.5f, 0.5f, 0f);
-				for (int i = 0; i < crop.seedInstance.harvestQuantity; i++)
-				{
-					SpawnDrop(crop.seedInstance.harvestProduct, dropPos);
-				}
-			}
-
-			// Retirer les fruits et revenir au sprite normal
-			crop.hasFruits = false;
-			UpdateCropSprite(cell, crop);
-			return true;
+			return false;
 		}
 
-		// Pour toutes les autres cultures (normales ou pérennes flétries), récolter et supprimer
-		// Supprimer la tile de la cropsTilemap
-		if (cropsTilemap != null)
-		{
-			cropsTilemap.SetTile(cell, null);
-		}
+		if (!IsTilled(pathTile))
+			return false;
 
-		// Dropper les produits de récolte (pas de récolte si flétrie)
-		if (!crop.isWithered && crop.seedInstance.harvestProduct != null)
-		{
-			Vector3 dropPos = cropsTilemap.CellToWorld(cell) + new Vector3(0.5f, 0.5f, 0f);
-			for (int i = 0; i < crop.seedInstance.harvestQuantity; i++)
-			{
-				SpawnDrop(crop.seedInstance.harvestProduct, dropPos);
-			}
-		}
+		if (!wateringCan.CanWater())
+			return false;
 
-		// Supprimer la culture du dictionnaire
-		plantedCrops.Remove(cell);
+		if (soilTiles.tilledWetTile != null)
+			soilTilemap.SetTile(cell, soilTiles.tilledWetTile);
 
+		soilService?.MarkWet(new GridPos(cell.x, cell.y));
+		wateringCan.UseWater();
+
+		if (plantedCrops.TryGetValue(cell, out var crop) && crop != null)
+			crop.lastWateredDay = timeManager != null ? timeManager.GetCurrentDay() : crop.lastWateredDay;
+
+		RefreshAroundSingleMap(soilTilemap, cell);
 		return true;
 	}
 
-	private bool TryHandleWateringAction(Vector3 world)
+	private bool TryHandleSoilTools(Vector3Int cell)
 	{
+		if (soilTilemap == null || soilTiles == null)
+			return false;
+
 		ToolKind tool = GetSelectedToolKind();
-		if (tool != ToolKind.WateringCan)
-			return false;
+		if (tool == ToolKind.None) return false;
 
-		if (grassTilemap == null || overGrassTilemap == null)
-			return false;
-
-		Vector3Int cell = grassTilemap.WorldToCell(world);
-		if (!IsWithinUseRange(grassTilemap, cell, GetSelectedUseRange()))
-		{
-			return false;
-		}
-		TileBase terrainTile = grassTilemap.GetTile(cell);
-		if (terrainTile == null)
-			return false;
-		TileBase dirtAtCell = overGrassTilemap.GetTile(cell);
-		bool isSoilAtCell = IsSoil(dirtAtCell);
-
-		var selectedItemStack = GetSelectedItemStack();
-		if (selectedItemStack != null && selectedItemStack.itemData is WateringCanData)
-		{
-			var wateringCanInstance = selectedItemStack.GetItemInstance() as WateringCanInstance;
-			
-			if (wateringCanInstance != null)
-			{
-				bool isWaterAtCell = IsWaterTile(terrainTile, wateringCanInstance) || IsWaterTile(dirtAtCell, wateringCanInstance);
-				
-				// Si on clique sur de l'eau, recharger l'arrosoir
-				if (isWaterAtCell)
-				{
-				if (wateringCanInstance.currentCapacity < wateringCanInstance.maxCapacity)
-				{
-					wateringCanInstance.Refill();
-					return true;
-				}
-				}
-				// Si on clique sur du soil, arroser
-				else if (isSoilAtCell)
-				{
-					if (wateringCanInstance.CanWater())
-					{
-						// Changer la tile de soil en soil mouillé
-						overGrassTilemap.SetTile(cell, wetSoilTile);
-						soilService?.MarkWet(new GridPos(cell.x, cell.y));
-						wateringCanInstance.UseWater();
-						
-						if (plantedCrops.ContainsKey(cell))
-						{
-							PlantedCrop crop = plantedCrops[cell];
-							crop.lastWateredDay = timeManager != null ? timeManager.GetCurrentDay() : 1;
-						}
-						
-						return true;
-					}
-					else
-					{
-						return false;
-					}
-				}
-			}
-		}
-
-		return false;
-	}
-
-
-	private bool TryHandleSoilToolAction(Vector3 world)
-	{
-		ToolKind tool = GetSelectedToolKind();
-		if (tool == ToolKind.None)
-		{
-			return false;
-		}
-
-		if (grassTilemap == null || overGrassTilemap == null)
-			return false;
-
-		bool changed = false;
-
-		Vector3Int cell = grassTilemap.WorldToCell(world);
-		if (!IsWithinUseRange(grassTilemap, cell, GetSelectedUseRange()))
-		{
-			return false;
-		}
-		TileBase terrainTile = grassTilemap.GetTile(cell);
-		if (terrainTile == null)
-			return false;
-		TileBase dirtAtCell = overGrassTilemap.GetTile(cell);
-		bool isSoilAtCell = IsSoil(dirtAtCell);
-		
-		// Vérifier s'il y a une plantation sur cette tile
 		bool hasCrop = plantedCrops.ContainsKey(cell);
+		if (hasCrop && (tool == ToolKind.Shovel || tool == ToolKind.Hoe))
+			return false;
+
+		TileBase at = soilTilemap.GetTile(cell);
+		bool changed = false;
 
 		switch (tool)
 		{
 			case ToolKind.Shovel:
-				// Pelle: Empêcher l'utilisation sur les plantations
-				if (hasCrop)
-				{
-					return false; // Ne pas permettre d'utiliser la pelle sur une plantation
-				}
-				
-				// Pelle:
-				// - Si terrain = herbe et aucune dirt/farmland au-dessus → poser dirt
-				// - Si soil présent ET arrosé → remettre herbe (supprimer crop et eau)
-				// - Si dirt présent → remettre herbe
-				if (IsGrass(terrainTile) && dirtAtCell == null)
-				{
-					overGrassTilemap.SetTile(cell, dirtTile);
-					soilService?.Unregister(new GridPos(cell.x, cell.y));
-					// Supprimer aussi la tile de foliage au même endroit si elle existe
-					RemoveFoliageTileAtCell(cell);
-					changed = true;
-				}
-				else if (isSoilAtCell || IsWetSoil(dirtAtCell))
-				{
-					// Si soil ou wet soil, on remet herbe
-					overGrassTilemap.SetTile(cell, null);
-					soilService?.Unregister(new GridPos(cell.x, cell.y));
-					changed = true;
-				}
-				else if (IsDirt(dirtAtCell))
-				{
-					overGrassTilemap.SetTile(cell, null);
-					soilService?.Unregister(new GridPos(cell.x, cell.y));
-					changed = true;
-				}
+				// Shovel = terre creusée
+				if (soilTiles.dugTile == null) return false;
+				if (at == soilTiles.dugTile) return false;
+				soilTilemap.SetTile(cell, soilTiles.dugTile);
+				soilService?.Unregister(new GridPos(cell.x, cell.y));
+				changed = true;
+				RemoveFoliageTileAtCell(cell);
 				break;
 
 			case ToolKind.Hoe:
-				// Hoe: Empêcher l'utilisation sur les plantations
-				if (hasCrop)
-				{
-					return false; // Ne pas permettre d'utiliser la hoe sur une plantation
-				}
-				
-				// Hoe:
-				// - Si dirt présent → remplacer par soil (farmland)
-				// - Si soil présent → remplacer par dirt
-				// - Si wet soil présent → remplacer par dirt
-				if (IsDirt(dirtAtCell))
-				{
-					overGrassTilemap.SetTile(cell, soilTile);
-					changed = true;
-				}
-				else if (isSoilAtCell || IsWetSoil(dirtAtCell))
-				{
-					overGrassTilemap.SetTile(cell, dirtTile);
-					changed = true;
-				}
+				// Hoe = terre retournée (uniquement depuis terre creusée)
+				if (!IsDug(at)) return false;
+				if (soilTiles.tilledTile == null) return false;
+				soilTilemap.SetTile(cell, soilTiles.tilledTile);
+				soilService?.RegisterSoil(new GridPos(cell.x, cell.y), isWet: false);
+				changed = true;
 				break;
-				
+
 			case ToolKind.Pickaxe:
-				// Pioche: Peut détruire les plantations
 				if (hasCrop)
 				{
-					// Détruire la plantation
 					DestroyCropAtCell(cell);
 					changed = true;
 				}
-				else if (IsDirt(dirtAtCell) || isSoilAtCell || IsWetSoil(dirtAtCell))
+				else if (at != null && (IsDug(at) || IsTilled(at) || IsWet(at)))
 				{
-					// Retourner à l'herbe
-					overGrassTilemap.SetTile(cell, null);
+					soilTilemap.SetTile(cell, null);
+					soilService?.Unregister(new GridPos(cell.x, cell.y));
 					changed = true;
 				}
 				break;
 		}
 
 		if (changed)
-		{
-			RefreshNeighborsForSoilLayers(cell);
-		}
+			RefreshAroundSingleMap(soilTilemap, cell);
 
 		return changed;
 	}
@@ -1083,150 +826,108 @@ public class TileInteractionController : MonoBehaviour
 		if (!plantedCrops.ContainsKey(cell))
 			return;
 
-		// Supprimer la tile de la cropsTilemap
 		if (cropsTilemap != null)
-		{
 			cropsTilemap.SetTile(cell, null);
-		}
 
-		// Supprimer la culture du dictionnaire
 		plantedCrops.Remove(cell);
 		cropService?.Remove(new GridPos(cell.x, cell.y));
 	}
 
-	private bool TryPlantSeed(Vector3 world, SeedData seedData)
+	private void HandleTileBreaking(Vector3 world)
 	{
-		if (grassTilemap == null || overGrassTilemap == null || cropsTilemap == null)
-			return false;
+		if (dropService == null || targetTilemaps == null || targetTilemaps.Count == 0)
+			return;
 
-		Vector3Int cell = grassTilemap.WorldToCell(world);
-		TileBase dirtAtCell = overGrassTilemap.GetTile(cell);
-		bool isSoilAtCell = IsSoil(dirtAtCell);
-		bool isWetSoilAtCell = IsWetSoil(dirtAtCell);
-
-		// Vérifier qu'il n'y a pas déjà une culture à cette position
-		if (plantedCrops.ContainsKey(cell))
+		for (int i = 0; i < targetTilemaps.Count; i++)
 		{
-			return false;
-		}
+			var tm = targetTilemaps[i];
+			if (tm == null) continue;
 
-		// Planter seulement sur du soil ou wet soil
-		if (isSoilAtCell || isWetSoilAtCell)
-		{
-			if (timeManager != null && seedData.CanPlant(timeManager.GetCurrentSeasonId()))
-			{
-				// Vérifier que les sprites de croissance sont définis
-				if (seedData.growthSprites == null || seedData.growthSprites.Length == 0)
-				{
-					return false;
-				}
-				
-				// Créer la culture plantée avec des données d'instance
-				PlantedCrop crop = new PlantedCrop
-				{
-					originalSeedData = seedData,
-					seedInstance = new SeedInstance(seedData),
-					currentStage = 0, // Commence à l'étape graine
-					dayPlanted = timeManager != null ? timeManager.GetCurrentDay() : 1,
-					isWithered = false,
-					isPerennial = seedData.isPerennial,
-					lastProductionDay = 0,
-					hasFruits = false,
-					lastWateredDay = timeManager != null ? timeManager.GetCurrentDay() : 1
-				};
+			Vector3Int cell = tm.WorldToCell(world);
+			TileBase clickedTile = tm.GetTile(cell);
+			if (clickedTile == null) continue;
 
-				// Enregistrer la culture
-				plantedCrops[cell] = crop;
-				cropService?.Plant(
-					new GridPos(cell.x, cell.y),
-					new CropBlueprint(
-						growthStagesCount: crop.seedInstance.growthSprites != null ? crop.seedInstance.growthSprites.Length : 0,
-						growthSeasonId: (int)crop.seedInstance.growthSeason,
-						witherTimeDays: crop.seedInstance.witherTime,
-						isPerennial: crop.isPerennial,
-						productionIntervalDays: crop.seedInstance.productionInterval),
-					currentDay: crop.dayPlanted);
+			if (!IsWithinUseRange(tm, cell, GetSelectedUseRange()))
+				return;
 
-				// Placer le sprite de culture (étape 0 = graine)
-				PlaceCropSprite(cell, 0);
+			if (!dropService.TryGetGroup(clickedTile, out var group) || group == null)
+				continue;
 
-				// Consommer la graine
-				playerInventory.RemoveItem(seedData, 1);
-				return true;
-			}
-		}
+			if (!TryGetAuthorizedBreakToolHits(group.RequiredTools, out int hitsToBreak))
+				return;
 
-		return false;
-	}
-
-	private void PlaceCropSprite(Vector3Int cell, int stage)
-	{
-		if (cropsTilemap == null) return;
-
-		if (!plantedCrops.ContainsKey(cell)) return;
-
-		PlantedCrop crop = plantedCrops[cell];
-		if (crop.seedInstance.growthSprites == null || stage < 0 || stage >= crop.seedInstance.growthSprites.Length) return;
-
-		TileBase cropTile = CreateCropTile(crop.seedInstance.growthSprites[stage]);
-		cropsTilemap.SetTile(cell, cropTile);
-	}
-
-	private TileBase CreateCropTile(Sprite sprite)
-	{
-		GameObject tempGO = new GameObject("TempCropTile");
-		SpriteRenderer sr = tempGO.AddComponent<SpriteRenderer>();
-		sr.sprite = sprite;
-		
-		var tile = ScriptableObject.CreateInstance<Tile>();
-		tile.sprite = sprite;
-		
-		DestroyImmediate(tempGO);
-		
-		return tile;
-	}
-
-
-	private bool IsGrass(TileBase tile) { return tile != null && grassTile != null && tile == grassTile; }
-	private bool IsDirt(TileBase tile) { return tile != null && dirtTile != null && tile == dirtTile; }
-	private bool IsSoil(TileBase tile) { return tile != null && soilTile != null && tile == soilTile; }
-	private bool IsWetSoil(TileBase tile) { return tile != null && wetSoilTile != null && tile == wetSoilTile; }
-	
-	private bool IsWaterTile(TileBase tile, WateringCanInstance wateringCanInstance) 
-	{ 
-		if (tile == null || wateringCanInstance == null || wateringCanInstance.waterSourceTiles == null) return false;
-		
-		// Vérifier si la tile correspond à une source d'eau définie dans l'arrosoir
-		foreach (TileBase waterSourceTile in wateringCanInstance.waterSourceTiles)
-		{
-			if (tile == waterSourceTile)
-				return true;
-		}
-		return false;
-	}
-
-	private void RefreshNeighborsForSoilLayers(Vector3Int cell)
-	{
-		// Rafraîchir la cellule et ses 8 voisins sur grass + dirt pour un autotiling correct
-		RefreshAroundSingleMap(grassTilemap, cell);
-		RefreshAroundSingleMap(overGrassTilemap, cell);
-	}
-
-	private void RefreshAroundSingleMap(Tilemap map, Vector3Int c)
-	{
-		if (map == null) return;
-		for (int dy = -1; dy <= 1; dy++)
-		{
-			for (int dx = -1; dx <= 1; dx++)
-			{
-				map.RefreshTile(new Vector3Int(c.x + dx, c.y + dy, c.z));
-			}
+			ApplyBreakHit(tm, cell, clickedTile, hitsToBreak);
+			break;
 		}
 	}
 
-
-	private bool IsToolSelected(ItemData requiredToolItem, ToolKind requiredToolKind)
+	private void ApplyBreakHit(Tilemap tm, Vector3Int cell, TileBase clickedTile, int hitsToBreak)
 	{
+		if (tm == null || clickedTile == null) return;
+
+		var key = new HitKey(tm.GetInstanceID(), cell);
+		if (!breakHits.TryGetValue(key, out var state) || state == null)
+		{
+			state = new HitState { Tile = clickedTile, Hits = 0 };
+			breakHits[key] = state;
+		}
+		else if (state.Tile != clickedTile)
+		{
+			state.Tile = clickedTile;
+			state.Hits = 0;
+		}
+
+		state.Hits++;
+		if (state.Hits < hitsToBreak)
+			return;
+
+		breakHits.Remove(key);
+		BreakSingle(tm, cell);
+	}
+
+	private bool IsWithinUseRange(Tilemap tm, Vector3Int cell, float range)
+	{
+		if (range <= 0f) return true;
+		if (tm == null) return true;
+		return Vector2.Distance(GetPlayerWorldPosition(), tm.GetCellCenterWorld(cell)) <= range;
+	}
+
+	private ToolKind GetSelectedToolKind()
+	{
+		if (playerInventory == null || inventoryManager == null)
+			return ToolKind.None;
+
+		int slot = inventoryManager.GetCurrentHotbarSlot();
+		ItemStack stack = playerInventory.GetItemInSlot(slot);
+		if (stack == null || stack.itemData == null)
+			return ToolKind.None;
+
+		return ItemInstanceFactory.GetToolKind(stack.itemData);
+	}
+
+	private ItemData GetSelectedItemData()
+	{
+		if (playerInventory == null || inventoryManager == null)
+			return null;
+
+		int slot = inventoryManager.GetCurrentHotbarSlot();
+		ItemStack stack = playerInventory.GetItemInSlot(slot);
+		return stack?.itemData;
+	}
+
+	private ItemStack GetSelectedItemStack()
+	{
+		if (playerInventory == null || inventoryManager == null)
+			return null;
+
+		int slot = inventoryManager.GetCurrentHotbarSlot();
+		return playerInventory.GetItemInSlot(slot);
+	}
+
+	private bool TryGetAuthorizedBreakToolHits(List<DropService.ToolHitRequirement> requiredTools, out int hitsToBreak)
+	{
+		hitsToBreak = 1;
+
 		if (playerInventory == null || inventoryManager == null)
 			return false;
 
@@ -1236,131 +937,117 @@ public class TileInteractionController : MonoBehaviour
 			return false;
 
 		ItemData data = stack.itemData;
-		bool hasSpecificItem = requiredToolItem != null;
-		bool hasKind = requiredToolKind != ToolKind.None;
-		
-		// Vérifier si l'item sélectionné est un outil
-		bool isTool = IsTool(data);
-		if (!isTool && (hasSpecificItem || hasKind))
-			return false;
 
-		// Si aucun outil spécifique/kind requis → n'importe quel outil suffit
-		if (!hasSpecificItem && !hasKind)
-			return isTool;
+		// Si aucune liste n'est définie: n'importe quel outil casse en 1 coup.
+		if (requiredTools == null || requiredTools.Count == 0)
+		{
+			return IsTool(data);
+		}
 
-		// 1) Comparaison stricte par référence d'ItemData
-		if (hasSpecificItem && data == requiredToolItem)
-			return true;
-
-		// 2) Si kind demandé, on compare via le type d'outil
-		if (hasKind && GetToolKindFromItem(data) == requiredToolKind)
-			return true;
-
-		// 3) Fallback: si un item précis est fourni, accepter toute variante du même type d'outil
-		if (hasSpecificItem && IsTool(requiredToolItem))
-			return GetToolKindFromItem(data) == GetToolKindFromItem(requiredToolItem);
+		for (int i = 0; i < requiredTools.Count; i++)
+		{
+			var r = requiredTools[i];
+			if (r == null || r.Item == null) continue;
+			if (data == r.Item)
+			{
+				hitsToBreak = r.HitsToBreak <= 0 ? 1 : r.HitsToBreak;
+				return true;
+			}
+		}
 
 		return false;
 	}
 
-	private bool IsTool(ItemData item)
+	private static bool IsTool(ItemData item)
 	{
-		if (item == null) return false;
-		
-		return item is WateringCanData || 
-		       item is ShovelData || 
-		       item is AxeData || 
-		       item is PickaxeData || 
-		       item is SpearData || 
+		return item is WateringCanData ||
+		       item is ShovelData ||
+		       item is AxeData ||
+		       item is PickaxeData ||
+		       item is SpearData ||
 		       item is HoeData;
 	}
 
-	private ToolKind GetToolKindFromItem(ItemData item)
-	{
-		if (item == null) return ToolKind.None;
-		
-		if (item is WateringCanData) return ToolKind.WateringCan;
-		if (item is ShovelData) return ToolKind.Shovel;
-		if (item is AxeData) return ToolKind.Axe;
-		if (item is PickaxeData) return ToolKind.Pickaxe;
-		if (item is SpearData) return ToolKind.Spear;
-		if (item is HoeData) return ToolKind.Hoe;
-		
-		return ToolKind.None;
-	}
-
-
+	// ToolKind n'est plus utilisé pour la casse/destruction (uniquement ailleurs dans le contrôleur).
 
 	private void BreakSingle(Tilemap tm, Vector3Int cell)
 	{
 		TileBase tile = tm.GetTile(cell);
 		if (tile == null) return;
-		Vector3 dropPos = tm.CellToWorld(cell) + new Vector3(0.5f, 0.5f, 0f);
-		tm.SetTile(cell, null);
-		DropConfiguredItemsForTile(tile, dropPos);
-	}
 
-	private void DropConfiguredItemsForTile(TileBase tileType, Vector3 worldPosition)
-	{
-		dropService?.SpawnConfiguredDropsForTile(tileType, worldPosition, SpawnDrop);
+		Vector3 dropPos = tm.GetCellCenterWorld(cell);
+		tm.SetTile(cell, null);
+		dropService?.SpawnConfiguredDropsForTile(tile, dropPos, SpawnDrop);
 	}
 
 	private void SpawnDrop(ItemData itemData, Vector3 worldPosition)
 	{
-		if (collectiblePrefab == null) return;
+		if (collectiblePrefab == null || itemData == null) return;
 
 		var drop = Instantiate(collectiblePrefab, worldPosition, Quaternion.identity);
 		drop.name = $"Drop_{itemData.itemName}";
 
 		var collectible = drop.GetComponent<ItemPickupController>();
 		if (collectible != null)
-		{
 			collectible.Setup(playerInventory, itemData);
-		}
 
 		StartCoroutine(SmoothParabolicJump(drop, worldPosition));
 	}
 
-
 	private IEnumerator SmoothParabolicJump(GameObject drop, Vector3 initialPosition)
 	{
-		if (drop != null)
+		if (drop == null) yield break;
+
+		float duration = 1f;
+		float maxHeight = 1f;
+		Vector3 finalPosition = initialPosition + new Vector3(Random.Range(-1.5f, 1.5f), Random.Range(-1.5f, 1.5f), 0);
+		float elapsedTime = 0f;
+
+		while (elapsedTime < duration && drop != null)
 		{
-			float duration = 1f;
-			float maxHeight = 1f;
-			Vector3 finalPosition = CalculateRandomFinalPosition(initialPosition);
-			float elapsedTime = 0f;
-			while (elapsedTime < duration && drop != null)
-			{
-				elapsedTime += Time.deltaTime;
-				float t = elapsedTime / duration;
-				Vector3 horizontalPosition = Vector3.Lerp(initialPosition, finalPosition, t);
-				float verticalOffset = 4 * maxHeight * t * (1 - t);
-				drop.transform.position = horizontalPosition + Vector3.up * verticalOffset;
-				yield return null;
-			}
-			if (drop != null)
-			{
-				drop.transform.position = finalPosition;
-			}
+			elapsedTime += Time.deltaTime;
+			float t = elapsedTime / duration;
+			Vector3 horizontalPosition = Vector3.Lerp(initialPosition, finalPosition, t);
+			float verticalOffset = 4 * maxHeight * t * (1 - t);
+			drop.transform.position = horizontalPosition + Vector3.up * verticalOffset;
+			yield return null;
 		}
+
+		if (drop != null)
+			drop.transform.position = finalPosition;
 	}
 
-	private Vector3 CalculateRandomFinalPosition(Vector3 initialPosition)
-	{
-		return initialPosition + new Vector3(UnityEngine.Random.Range(-1.5f, 1.5f), UnityEngine.Random.Range(-1.5f, 1.5f), 0);
-	}
-	
 	private void RemoveFoliageTileAtCell(Vector3Int cell)
 	{
-		if (foliageTilemap == null)
-			return;
-		
-		// Supprimer la tile de foliage au même endroit si elle existe
-		TileBase foliageTile = foliageTilemap.GetTile(cell);
-		if (foliageTile != null)
+		if (foliageTilemap == null) return;
+		if (foliageTilemap.GetTile(cell) == null) return;
+		foliageTilemap.SetTile(cell, null);
+	}
+
+	private bool IsDug(TileBase t) => t != null && soilTiles != null && soilTiles.dugTile != null && t == soilTiles.dugTile;
+	private bool IsTilled(TileBase t) => t != null && soilTiles != null && soilTiles.tilledTile != null && t == soilTiles.tilledTile;
+	private bool IsWet(TileBase t) => t != null && soilTiles != null && soilTiles.tilledWetTile != null && t == soilTiles.tilledWetTile;
+
+	private static bool IsWaterTile(TileBase tile, WateringCanInstance wateringCanInstance)
+	{
+		if (tile == null || wateringCanInstance == null || wateringCanInstance.waterSourceTiles == null) return false;
+		foreach (TileBase waterSourceTile in wateringCanInstance.waterSourceTiles)
 		{
-			foliageTilemap.SetTile(cell, null);
+			if (tile == waterSourceTile)
+				return true;
+		}
+		return false;
+	}
+
+	private static void RefreshAroundSingleMap(Tilemap map, Vector3Int c)
+	{
+		if (map == null) return;
+		for (int dy = -1; dy <= 1; dy++)
+		{
+			for (int dx = -1; dx <= 1; dx++)
+			{
+				map.RefreshTile(new Vector3Int(c.x + dx, c.y + dy, c.z));
+			}
 		}
 	}
 }

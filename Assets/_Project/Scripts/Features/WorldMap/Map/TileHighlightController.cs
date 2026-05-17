@@ -5,13 +5,24 @@ public class TileHighlightController : MonoBehaviour
 {
     [SerializeField] private GameObject highlightBorderPrefab;
     [SerializeField] private Tilemap targetTilemap; // Tilemap sur laquelle on veut highlight
+    [SerializeField] private TileInteractionController tileInteractionController;
 
     private GameObject currentHighlight;
     private Vector3Int lastHighlightedCell = new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
 
     private void Update()
     {
+        EnsureTargetTilemap();
         UpdateHighlight();
+    }
+
+    private void EnsureTargetTilemap()
+    {
+        if (targetTilemap != null) return;
+        if (tileInteractionController == null)
+            tileInteractionController = FindObjectOfType<TileInteractionController>(includeInactive: true);
+        if (tileInteractionController != null)
+            targetTilemap = tileInteractionController.SoilTilemap;
     }
 
     private void UpdateHighlight()
