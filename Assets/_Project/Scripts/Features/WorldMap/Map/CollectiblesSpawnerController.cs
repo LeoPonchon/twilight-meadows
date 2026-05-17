@@ -95,6 +95,12 @@ public class CollectiblesSpawnerController : MonoBehaviour
 
 	private void Start()
 	{
+		if (SaveLoadState.HasLoadedWorldState)
+		{
+			// When loading a save, world state (including collectibles) should be restored, not procedurally generated.
+			return;
+		}
+
 		GenerateRocks();
 		if (generateTrees)
 		{
@@ -104,6 +110,11 @@ public class CollectiblesSpawnerController : MonoBehaviour
 
 	private void HandleSeasonStarted(int seasonId, string seasonName)
 	{
+		if (SaveLoadState.HasLoadedWorldState)
+		{
+			return;
+		}
+
 		GenerateRocks();
 		if (generateTrees)
 		{

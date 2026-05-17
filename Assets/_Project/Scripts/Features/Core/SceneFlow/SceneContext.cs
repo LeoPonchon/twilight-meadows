@@ -23,6 +23,8 @@ public class SceneContext : MonoBehaviour
     [SerializeField] private MonoBehaviour economyManager;
     [SerializeField] private MonoBehaviour timeManager;
     [SerializeField] private MonoBehaviour weatherManager;
+    [SerializeField] private MonoBehaviour saveGameService;
+    [SerializeField] private MonoBehaviour worldSaveService;
 
     public PlayerInput PlayerInput => playerInput;
     public Canvas UiCanvas => uiCanvas;
@@ -47,6 +49,8 @@ public class SceneContext : MonoBehaviour
         if (economyManager == null) Debug.LogError("SceneContext: EconomyManager is not assigned.", this);
         if (timeManager == null) Debug.LogError("SceneContext: TimeManager is not assigned.", this);
         if (weatherManager == null) Debug.LogError("SceneContext: WeatherManager is not assigned.", this);
+        if (saveGameService == null) Debug.LogWarning("SceneContext: SaveGameService is not assigned.", this);
+        if (worldSaveService == null) Debug.LogWarning("SceneContext: WorldSaveService is not assigned.", this);
     }
 
     public bool TryGet<T>(out T value) where T : class
@@ -63,6 +67,8 @@ public class SceneContext : MonoBehaviour
         if (TryResolveFromObject(economyManager, out T d)) return d;
         if (TryResolveFromObject(timeManager, out T e)) return e;
         if (TryResolveFromObject(weatherManager, out T f)) return f;
+        if (TryResolveFromObject(saveGameService, out T g)) return g;
+        if (TryResolveFromObject(worldSaveService, out T h)) return h;
         return null;
     }
 

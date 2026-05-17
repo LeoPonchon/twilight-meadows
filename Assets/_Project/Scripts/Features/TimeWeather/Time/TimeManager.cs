@@ -131,7 +131,8 @@ public class TimeManager : MonoBehaviour
         int seasonId = clock.SeasonId;
         int year = clock.Year;
 
-        string dayNameToDisplay = (days % 7) switch { 1 => "Mon", 2 => "Tue", 3 => "Wed", 4 => "Thu", 5 => "Fri", 6 => "Sat", 0 => "Sun", _ => "" };
+        int absoluteDayIndex = ((year - 1) * 112) + ((seasonId - 1) * 28) + (days - 1);
+        string dayNameToDisplay = (absoluteDayIndex % 7) switch { 0 => "Mon", 1 => "Tue", 2 => "Wed", 3 => "Thu", 4 => "Fri", 5 => "Sat", 6 => "Sun", _ => "" };
         string seasonToDisplay = seasonId switch { 1 => "Spring", 2 => "Summer", 3 => "Autumn", 4 => "Winter", _ => "" };
 
         timeDisplay.text = string.Format("{0:00}:{1:00}", hours, mins);
@@ -162,6 +163,34 @@ public class TimeManager : MonoBehaviour
         }
 
         clock.SetState(hour, minute, day, seasonId, year);
+        DisplayTime();
+    }
+
+    public void AdvanceDays(int days)
+    {
+        if (days <= 0) return;
+
+        if (clock == null)
+        {
+            clock = new GameClock(startingHours, startingDay, startingSeasonId, startingYear);
+            clock.DayChanged += HandleDayChanged;
+            clock.SeasonStarted += HandleSeasonStarted;
+        }
+
+        clock.AdvanceDays(days);
+        DisplayTime();
+    }
+
+    public void SetTimeOfDay(int hour, int minute)
+    {
+        if (clock == null)
+        {
+            clock = new GameClock(startingHours, startingDay, startingSeasonId, startingYear);
+            clock.DayChanged += HandleDayChanged;
+            clock.SeasonStarted += HandleSeasonStarted;
+        }
+
+        clock.SetState(hour, minute, clock.Day, clock.SeasonId, clock.Year);
         DisplayTime();
     }
 }

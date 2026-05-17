@@ -10,6 +10,7 @@ public sealed class GameSaveData
     public string sceneName;
 
     public Vector3 playerPosition;
+    public bool hasPlayerPosition;
 
     public int gold;
 
@@ -18,5 +19,6 @@ public sealed class GameSaveData
     public int year;
     public int hour;
     public int minute;
-}
 
+    public WorldStateSaveData world;
+}

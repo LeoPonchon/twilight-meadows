@@ -5,17 +5,17 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 [DefaultExecutionOrder(-500)]
-public sealed class AutoSaveOnDayChange : MonoBehaviour
+public sealed class AutoSaveOnDayChange : MonoBehaviour, ISaveGameService
 {
     [Header("Behavior")]
     [SerializeField] private bool loadOnStart = true;
-    [SerializeField] private bool autoSaveOnDayChanged = true;
 
     [Header("References (optional)")]
     [SerializeField] private SceneContext sceneContext;
 
     private TimeManager timeManager;
     private EconomyManager economyManager;
+    private IWorldSaveService worldSaveService;
 
     private void Awake()
     {
@@ -27,6 +27,8 @@ public sealed class AutoSaveOnDayChange : MonoBehaviour
 
     private void Start()
     {
+        SaveLoadState.ResetForNewSession();
+
         if (sceneContext == null)
         {
             Debug.LogError("AutoSaveOnDayChange: Missing SceneContext in scene.", this);
@@ -36,6 +38,20 @@ public sealed class AutoSaveOnDayChange : MonoBehaviour
 
         timeManager = sceneContext.GetRequired<TimeManager>(this, "TimeManager");
         economyManager = sceneContext.Get<EconomyManager>();
+        worldSaveService = sceneContext.Get<IWorldSaveService>();
+        if (worldSaveService == null)
+        {
+            // Fallback when SceneContext isn't wired (dev-friendly).
+            var behaviours = FindObjectsOfType<MonoBehaviour>();
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                if (behaviours[i] is IWorldSaveService svc)
+                {
+                    worldSaveService = svc;
+                    break;
+                }
+            }
+        }
 
         if (timeManager == null)
         {
@@ -47,24 +63,11 @@ public sealed class AutoSaveOnDayChange : MonoBehaviour
         {
             TryLoadActiveSlot();
         }
-
-        if (autoSaveOnDayChanged)
-        {
-            timeManager.OnDayChanged += HandleDayChanged;
-        }
     }
 
     private void OnDestroy()
     {
-        if (timeManager != null)
-        {
-            timeManager.OnDayChanged -= HandleDayChanged;
-        }
-    }
-
-    private void HandleDayChanged(int day)
-    {
-        SaveNow();
+        // Intentionally no autosave subscription: saving is triggered only on new game creation and on sleep/faint.
     }
 
     private void TryLoadActiveSlot()
@@ -98,7 +101,8 @@ public sealed class AutoSaveOnDayChange : MonoBehaviour
     private void ApplyLoadedData(GameSaveData data)
     {
         var player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
+        bool canApplyPosition = data.hasPlayerPosition || data.playerPosition != Vector3.zero;
+        if (player != null && canApplyPosition)
         {
             player.transform.position = data.playerPosition;
         }
@@ -108,12 +112,23 @@ public sealed class AutoSaveOnDayChange : MonoBehaviour
             economyManager.SetGold(data.gold);
         }
 
+        if (data.day <= 0 || data.seasonId <= 0 || data.year <= 0)
+        {
+            return;
+        }
+
         timeManager.SetTimeState(
             hour: data.hour,
             minute: data.minute,
             day: data.day,
             seasonId: data.seasonId,
             year: data.year);
+
+        if (worldSaveService != null && data.world != null)
+        {
+            worldSaveService.ApplyWorld(data.world);
+            SaveLoadState.HasLoadedWorldState = true;
+        }
     }
 
     public void SaveNow()
@@ -129,12 +144,14 @@ public sealed class AutoSaveOnDayChange : MonoBehaviour
             savedAtUtc = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
             sceneName = SceneManager.GetActiveScene().name,
             playerPosition = playerPos,
+            hasPlayerPosition = player != null,
             gold = economyManager != null ? economyManager.Gold : 0,
             day = timeManager.GetCurrentDay(),
             seasonId = timeManager.GetCurrentSeasonId(),
             year = timeManager.GetCurrentYear(),
             hour = timeManager.GetCurrentHour(),
             minute = timeManager.GetCurrentMins(),
+            world = worldSaveService != null ? worldSaveService.CaptureWorld() : null,
         };
 
         try
@@ -142,6 +159,10 @@ public sealed class AutoSaveOnDayChange : MonoBehaviour
             SaveSlots.EnsureSaveDirectoryExists();
             File.WriteAllText(active.FilePath, JsonUtility.ToJson(data, prettyPrint: true));
             SaveSlots.TouchLastPlayed(active.SlotId);
+            if (data.world == null)
+            {
+                Debug.LogWarning("AutoSaveOnDayChange: Saved without world state (missing IWorldSaveService).", this);
+            }
         }
         catch (Exception ex)
         {

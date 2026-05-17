@@ -263,6 +263,35 @@ public sealed class CropService
 
     public bool Plant(GridPos pos, CropBlueprint blueprint, int currentDay) => farmingWorld.Plant(pos, blueprint, currentDay);
 
+    public void RestoreCrop(
+        GridPos pos,
+        CropBlueprint blueprint,
+        int currentStage,
+        int dayPlanted,
+        int lastWateredDay,
+        bool isWithered,
+        int lastProductionDay,
+        bool hasFruits)
+    {
+        // Ensure crop exists then patch its state.
+        if (!farmingWorld.HasCrop(pos))
+        {
+            int plantedDay = dayPlanted > 0 ? dayPlanted : 1;
+            farmingWorld.Plant(pos, blueprint, plantedDay);
+        }
+
+        if (farmingWorld.TryGetCrop(pos, out var crop) && crop != null)
+        {
+            crop.Blueprint = blueprint;
+            crop.CurrentStage = currentStage;
+            crop.DayPlanted = dayPlanted;
+            crop.LastWateredDay = lastWateredDay;
+            crop.IsWithered = isWithered;
+            crop.LastProductionDay = lastProductionDay;
+            crop.HasFruits = hasFruits;
+        }
+    }
+
     public bool Remove(GridPos pos) => farmingWorld.Remove(pos);
 
     public List<FarmingWorld.CropUpdate> TickDay(int currentDay, int currentSeasonId) => farmingWorld.TickDay(currentDay, currentSeasonId);
@@ -271,4 +300,3 @@ public sealed class CropService
 
     public void DryPerennialFruits() => farmingWorld.DryPerennialFruits();
 }
-

@@ -54,6 +54,15 @@ public sealed class GameClock
         AdvanceDay();
     }
 
+    public void AdvanceDays(int days)
+    {
+        if (days <= 0) return;
+        for (int i = 0; i < days; i++)
+        {
+            AdvanceDay();
+        }
+    }
+
     private void AdvanceDay()
     {
         Day += 1;

@@ -18,18 +18,45 @@ public static class SaveSlots
         public string FilePath { get; }
         public DateTime LastWriteUtc { get; }
 
-        public SaveSlotInfo(string slotId, string filePath, DateTime lastWriteUtc)
+        public DateTime SavedAtUtc { get; }
+        public int Day { get; }
+        public int SeasonId { get; }
+        public int Year { get; }
+        public int Gold { get; }
+
+        public SaveSlotInfo(
+            string slotId,
+            string filePath,
+            DateTime lastWriteUtc,
+            DateTime savedAtUtc,
+            int day,
+            int seasonId,
+            int year,
+            int gold)
         {
             SlotId = slotId;
             FilePath = filePath;
             LastWriteUtc = lastWriteUtc;
+            SavedAtUtc = savedAtUtc;
+            Day = day;
+            SeasonId = seasonId;
+            Year = year;
+            Gold = gold;
         }
 
         public string GetDisplayName(string prefix = "Partie")
         {
-            var local = LastWriteUtc.ToLocalTime();
+            var local = SavedAtUtc.ToLocalTime();
             var stamp = local.ToString("dd/MM/yyyy HH:mm", CultureInfo.CurrentCulture);
-            return $"{prefix} {SlotId} ({stamp})";
+
+            var seasonName = GetSeasonNameById(SeasonId);
+            if (string.IsNullOrWhiteSpace(seasonName)) seasonName = "?";
+
+            var dayPart = Day > 0 ? $"Jour {Day}" : "Jour ?";
+            var yearPart = Year > 0 ? $"Année {Year}" : "Année ?";
+            var goldPart = Gold >= 0 ? $"{Gold}g" : "?g";
+
+            return $"{prefix} - {stamp} - {dayPart} - {seasonName} - {yearPart} - {goldPart}";
         }
     }
 
@@ -70,7 +97,26 @@ public static class SaveSlots
                 lastWriteUtc = DateTime.MinValue;
             }
 
-            list.Add(new SaveSlotInfo(slotId, file, lastWriteUtc));
+            var savedAtUtc = lastWriteUtc;
+            var day = -1;
+            var seasonId = -1;
+            var year = -1;
+            var gold = -1;
+
+            if (TryReadSaveData(file, out var data) && data != null)
+            {
+                if (DateTime.TryParse(data.savedAtUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed))
+                {
+                    savedAtUtc = parsed.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc) : parsed.ToUniversalTime();
+                }
+
+                if (data.day > 0) day = data.day;
+                if (data.seasonId > 0) seasonId = data.seasonId;
+                if (data.year > 0) year = data.year;
+                gold = data.gold;
+            }
+
+            list.Add(new SaveSlotInfo(slotId, file, lastWriteUtc, savedAtUtc, day, seasonId, year, gold));
         }
 
         list.Sort((a, b) => b.LastWriteUtc.CompareTo(a.LastWriteUtc));
@@ -81,6 +127,9 @@ public static class SaveSlots
         => ListSaves().FirstOrDefault();
 
     public static SaveSlotInfo CreateNewSave(string slotId = null)
+        => CreateNewSave(initialData: null, slotId: slotId);
+
+    public static SaveSlotInfo CreateNewSave(GameSaveData initialData, string slotId = null)
     {
         EnsureSaveDirectoryExists();
 
@@ -96,10 +145,26 @@ public static class SaveSlots
         }
 
         var nowUtc = DateTime.UtcNow;
-        File.WriteAllText(path, "{}");
+        if (initialData == null)
+        {
+            File.WriteAllText(path, "{}");
+        }
+        else
+        {
+            initialData.slotId = id;
+            if (string.IsNullOrWhiteSpace(initialData.savedAtUtc))
+            {
+                initialData.savedAtUtc = nowUtc.ToString("O", CultureInfo.InvariantCulture);
+            }
+            File.WriteAllText(path, JsonUtility.ToJson(initialData, prettyPrint: true));
+        }
         try { File.SetLastWriteTimeUtc(path, nowUtc); } catch { }
 
-        return new SaveSlotInfo(id, path, nowUtc);
+        var day = initialData != null ? initialData.day : -1;
+        var seasonId = initialData != null ? initialData.seasonId : -1;
+        var year = initialData != null ? initialData.year : -1;
+        var gold = initialData != null ? initialData.gold : -1;
+        return new SaveSlotInfo(id, path, nowUtc, nowUtc, day, seasonId, year, gold);
     }
 
     public static void SetActiveSlotId(string slotId)
@@ -134,7 +199,7 @@ public static class SaveSlots
         }
 
         var lastWriteUtc = File.GetLastWriteTimeUtc(path);
-        save = new SaveSlotInfo(id, path, lastWriteUtc);
+        save = new SaveSlotInfo(id, path, lastWriteUtc, lastWriteUtc, -1, -1, -1, -1);
         return true;
     }
 
@@ -163,6 +228,39 @@ public static class SaveSlots
         var created = CreateNewSave();
         SetActiveSlotId(created.SlotId);
         return created;
+    }
+
+    private static bool TryReadSaveData(string filePath, out GameSaveData data)
+    {
+        try
+        {
+            var json = File.ReadAllText(filePath);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                data = null;
+                return false;
+            }
+
+            data = JsonUtility.FromJson<GameSaveData>(json);
+            return data != null;
+        }
+        catch
+        {
+            data = null;
+            return false;
+        }
+    }
+
+    private static string GetSeasonNameById(int id)
+    {
+        return id switch
+        {
+            1 => "Spring",
+            2 => "Summer",
+            3 => "Autumn",
+            4 => "Winter",
+            _ => string.Empty
+        };
     }
 
     public static void TryMigrateLegacySaveIfNeeded()

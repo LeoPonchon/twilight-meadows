@@ -24,6 +24,11 @@ public sealed class GoldHudController : MonoBehaviour
         {
             economyManager = sceneContext.GetRequired<EconomyManager>(this, nameof(economyManager));
         }
+
+        if (goldText == null)
+        {
+            goldText = GetComponentInChildren<TextMeshProUGUI>(includeInactive: true);
+        }
     }
 
     private void OnEnable()

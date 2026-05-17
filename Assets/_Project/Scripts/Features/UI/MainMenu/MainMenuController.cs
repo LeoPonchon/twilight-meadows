@@ -145,7 +145,18 @@ public sealed class MainMenuController : MonoBehaviour
     public void OnNewGameClicked()
     {
         PlayerPrefs.DeleteKey(HasSavePlayerPrefsKey);
-        var created = SaveSlots.CreateNewSave();
+        var created = SaveSlots.CreateNewSave(new GameSaveData
+        {
+            sceneName = GameSceneName,
+            gold = 0,
+            day = 1,
+            seasonId = 1,
+            year = 1,
+            hour = 9,
+            minute = 0,
+            hasPlayerPosition = false,
+            playerPosition = Vector3.zero,
+        });
         SaveSlots.SetActiveSlotId(created.SlotId);
         SaveSlots.TouchLastPlayed(created.SlotId);
 

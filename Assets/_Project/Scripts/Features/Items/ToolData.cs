@@ -12,6 +12,10 @@ public abstract class ToolData : ItemData
     
     [Tooltip("Coût en stamina par utilisation")]
     public int staminaCost = 1;
+
+    [Tooltip("Portée d'utilisation (en unités Unity)")]
+    [Min(0.1f)]
+    public float useRange = 1.5f;
     
     public bool CanUse()
     {
